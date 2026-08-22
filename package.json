@@ -1,0 +1,9 @@
+{
+  "name": "hng-landing-railway",
+  "private": true,
+  "version": "1.0.0",
+  "description": "H&G Korea Working Holiday landing page for Railway deployment.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
