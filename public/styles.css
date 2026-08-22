@@ -12,6 +12,9 @@
   --accent: #2f7d4b;
   --accent-strong: #235f39;
   --accent-soft: #e1eee3;
+  --pink: #ff4fb4;
+  --blue: #6aa7ff;
+  --gold: #ffc44d;
   --display: 'Noto Serif KR', Georgia, serif;
   --body: 'Pretendard', 'Noto Sans KR', Arial, sans-serif;
   --mono: 'DM Mono', 'SFMono-Regular', Consolas, monospace;
@@ -170,6 +173,15 @@ summary:focus-visible {
   font: 900 clamp(42px, 5.7vw, 82px)/0.98 var(--display);
   letter-spacing: -0.08em;
 }
+.hero-copy h1::after {
+  display: block;
+  width: min(220px, 36vw);
+  height: 8px;
+  margin-top: 14px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--pink), var(--blue));
+  content: "";
+}
 .hero-lede {
   max-width: 720px;
   margin: 0;
@@ -240,6 +252,55 @@ summary:focus-visible {
   padding: 24px;
   color: #fff;
   background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+    var(--panel);
+}
+.hero-visual {
+  display: grid;
+  gap: 14px;
+}
+.hero-visual-photo {
+  position: relative;
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid var(--ink);
+  background: linear-gradient(135deg, #101010, #1b1b1b);
+  box-shadow: 16px 16px 0 rgba(21, 21, 21, 0.15);
+}
+.hero-visual-photo img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(1.12) contrast(1.05);
+}
+.hero-visual-overlay {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(21, 21, 21, 0.14), rgba(21, 21, 21, 0.46)),
+    linear-gradient(125deg, rgba(255, 79, 180, 0.16), transparent 45%, rgba(106, 167, 255, 0.18));
+}
+.hero-visual-chip {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  padding: 8px 12px;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  background: rgba(10, 10, 10, 0.46);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.25);
+  font: 700 10px var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.hero-visual-card {
+  padding: 24px;
+  color: #fff;
+  border: 1px solid var(--ink);
+  background:
+    linear-gradient(180deg, rgba(255, 79, 180, 0.08), transparent 50%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
     var(--panel);
 }
@@ -329,6 +390,7 @@ summary:focus-visible {
   letter-spacing: 0.12em;
 }
 .plan-photo {
+  position: relative;
   display: grid;
   min-height: 160px;
   place-items: end start;
@@ -339,12 +401,23 @@ summary:focus-visible {
     linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0)),
     linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 58%);
 }
+.plan-photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  filter: saturate(1.08) contrast(1.02);
+}
 .plan-photo span {
+  position: relative;
+  z-index: 1;
   max-width: 85%;
   padding: 7px 10px;
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.38);
   font: 10px var(--mono);
   letter-spacing: 0.06em;
 }
@@ -374,7 +447,7 @@ summary:focus-visible {
   padding: 5px 8px;
   color: #d7edd9;
   border: 1px solid rgba(215, 237, 217, 0.32);
-  background: rgba(47, 125, 75, 0.14);
+  background: linear-gradient(90deg, rgba(47, 125, 75, 0.18), rgba(106, 167, 255, 0.12));
 }
 .plan-copy h3 {
   margin: 0 0 15px;
@@ -524,6 +597,7 @@ summary:focus-visible {
 .partner-card {
   padding: 26px;
   background:
+    linear-gradient(135deg, rgba(255, 79, 180, 0.08), rgba(106, 167, 255, 0.08) 35%, rgba(255, 255, 255, 0) 70%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0)),
     var(--accent-soft);
 }
@@ -574,7 +648,7 @@ summary:focus-visible {
 .faq-list summary::-webkit-details-marker { display: none; }
 .faq-list summary::after {
   float: right;
-  color: var(--accent);
+  color: var(--pink);
   content: "+";
   font: 700 18px var(--mono);
 }
@@ -645,6 +719,10 @@ summary:focus-visible {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+.payment-strip span:nth-child(1) { color: var(--accent); }
+.payment-strip span:nth-child(2) { color: var(--pink); }
+.payment-strip span:nth-child(3) { color: var(--blue); }
+.payment-strip span:nth-child(4) { color: #c98200; }
 .payment-note {
   margin: 0;
   color: var(--muted);
