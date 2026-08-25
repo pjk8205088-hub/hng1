@@ -10,6 +10,9 @@ class LandingPageTest(unittest.TestCase):
     def test_required_pages_and_assets_exist(self):
         for relative in (
             "index.html",
+            "admin.html",
+            "admin.css",
+            "admin.js",
             "styles.css",
             "app.js",
             "config.js",
@@ -26,6 +29,11 @@ class LandingPageTest(unittest.TestCase):
             self.assertIn(marker, html)
         self.assertTrue((ROOT / "aws" / "template.yaml").is_file())
         self.assertTrue((ROOT / "aws" / "deploy.ps1").is_file())
+
+    def test_admin_dashboard_uses_adminlte(self):
+        html = (PUBLIC / "admin.html").read_text(encoding="utf-8")
+        for marker in ("AdminLTE 4.8.5", "Pedidos & pagamentos", "Códigos de parceiro", "Produtos: turismo & estudantes estrangeiros"):
+            self.assertIn(marker, html)
 
 
 if __name__ == "__main__":

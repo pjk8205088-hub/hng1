@@ -1,0 +1,203 @@
+:root {
+  --hng-navy: #16324f;
+  --hng-blue: #5b8def;
+  --hng-blue-soft: #eef4ff;
+  --hng-surface: #ffffff;
+  --hng-border: #d8e2f0;
+  --hng-text: #17324d;
+  --hng-muted: #5e748c;
+  --hng-shadow: 0 12px 30px rgba(23, 50, 77, 0.08);
+}
+
+html, body {
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--hng-text);
+  background:
+    radial-gradient(circle at top left, rgba(91, 141, 239, 0.10), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(108, 141, 177, 0.10), transparent 30%),
+    #f4f7fb;
+}
+
+.admin-shell .app-header,
+.admin-shell .app-footer,
+.admin-shell .app-content-header,
+.admin-shell .card,
+.admin-shell .modal-content {
+  border-color: var(--hng-border) !important;
+}
+
+.admin-shell .app-sidebar {
+  background: linear-gradient(180deg, #11253b 0%, #172f49 100%);
+}
+
+.admin-shell .brand-link {
+  text-decoration: none;
+}
+
+.admin-shell .brand-image {
+  width: 2.35rem;
+  height: 2.35rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.admin-sidebar-toggle {
+  color: var(--hng-navy);
+}
+
+.admin-search-group {
+  max-width: 360px;
+  width: 100%;
+}
+
+.admin-search-group .input-group-text,
+.admin-search-group .form-control {
+  border-color: var(--hng-border);
+}
+
+.app-content-header {
+  background: rgba(255, 255, 255, 0.82) !important;
+  backdrop-filter: blur(14px);
+}
+
+.metric-card {
+  border: 1px solid var(--hng-border);
+  border-radius: 1.5rem;
+  box-shadow: var(--hng-shadow);
+  min-height: 130px;
+}
+
+.metric-card .inner p {
+  color: var(--hng-muted);
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.metric-card .inner h3 {
+  font-size: clamp(1.65rem, 3vw, 2.15rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.metric-card .icon {
+  color: rgba(23, 50, 77, 0.18);
+}
+
+.metric-card.bg-info-subtle { background: linear-gradient(135deg, #eef7ff, #f8fbff) !important; }
+.metric-card.bg-success-subtle { background: linear-gradient(135deg, #edf9f2, #f8fffb) !important; }
+.metric-card.bg-warning-subtle { background: linear-gradient(135deg, #fff9ea, #fffdf5) !important; }
+.metric-card.bg-danger-subtle { background: linear-gradient(135deg, #fff1f1, #fff9f9) !important; }
+
+.admin-card {
+  border: 1px solid var(--hng-border);
+  border-radius: 1.5rem;
+  box-shadow: var(--hng-shadow);
+  overflow: hidden;
+}
+
+.admin-card .card-header {
+  background: linear-gradient(180deg, rgba(91, 141, 239, 0.06), rgba(255, 255, 255, 0));
+}
+
+.admin-table > :not(caption) > * > * {
+  padding-top: 0.95rem;
+  padding-bottom: 0.95rem;
+}
+
+.admin-table tbody tr:hover {
+  background: rgba(91, 141, 239, 0.05);
+}
+
+.badge-soft {
+  border-radius: 999px;
+  padding: 0.45rem 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.badge-paid { background: #e9f8ef; color: #15803d; }
+.badge-pending { background: #fff5db; color: #a16207; }
+.badge-refunded { background: #ffe7e7; color: #b91c1c; }
+.badge-pix { background: #eaf2ff; color: #2859c5; }
+.badge-card { background: #f1eaff; color: #6d28d9; }
+
+.admin-preview {
+  width: 100%;
+  min-height: 280px;
+  object-fit: cover;
+  background: #eef4ff;
+  border: 1px solid var(--hng-border);
+}
+
+.product-form .form-control,
+.product-form .form-select,
+#checkoutSettingsForm .form-control,
+#partnerForm .form-control,
+#partnerForm .form-select {
+  border-color: var(--hng-border);
+  border-radius: 0.95rem;
+  box-shadow: none;
+}
+
+.product-form .form-control:focus,
+.product-form .form-select:focus,
+#checkoutSettingsForm .form-control:focus,
+#partnerForm .form-control:focus,
+#partnerForm .form-select:focus {
+  border-color: var(--hng-blue);
+  box-shadow: 0 0 0 0.18rem rgba(91, 141, 239, 0.16);
+}
+
+.timeline > div > .timeline-item {
+  margin-left: 52px;
+  border-radius: 1rem;
+  border: 1px solid var(--hng-border);
+  box-shadow: none;
+}
+
+.timeline > div > .bi {
+  background: linear-gradient(135deg, #dce8ff, #eef4ff);
+  color: var(--hng-blue);
+  box-shadow: none;
+}
+
+.timeline-header {
+  background: #fff;
+  border-bottom: 1px solid var(--hng-border);
+}
+
+.timeline-body {
+  background: #fff;
+}
+
+.timeline-footer {
+  background: #fff;
+  border-top: 1px solid var(--hng-border);
+}
+
+.admin-shell .btn {
+  border-radius: 0.95rem;
+  font-weight: 600;
+}
+
+.admin-shell .table-light {
+  --bs-table-bg: #f7faff;
+}
+
+@media (max-width: 991.98px) {
+  .admin-search-group {
+    max-width: none;
+    width: 100%;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .metric-card {
+    min-height: 112px;
+  }
+
+  .admin-preview {
+    min-height: 220px;
+  }
+}
