@@ -25,7 +25,7 @@ class LandingPageTest(unittest.TestCase):
 
     def test_pdf_sections_and_aws_assets_are_present(self):
         html = (PUBLIC / "index.html").read_text(encoding="utf-8")
-        for marker in ("#pricing", "id=\"services\"", "id=\"process\"", "id=\"partner\"", "R$ 3.980", "R$ 2.980", "@hng_agency", "823-32-01422", "전자상거래 소매 중개업"):
+        for marker in ("#pricing", "id=\"services\"", "id=\"process\"", "id=\"partner\"", "R$ 3.980", "R$ 2.980", "@hng_agency", "823-32-01422", "전자상거래 소매 중개업", "Código de indicação"):
             self.assertIn(marker, html)
         self.assertTrue((ROOT / "aws" / "template.yaml").is_file())
         self.assertTrue((ROOT / "aws" / "deploy.ps1").is_file())

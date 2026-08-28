@@ -117,6 +117,10 @@ const I18N = {
     "form.first": "Primeiro semestre de 2026",
     "form.second": "Segundo semestre de 2026",
     "form.later": "Ainda não decidi",
+    "form.paymentMethod": "Forma de pagamento",
+    "form.pix": "PIX",
+    "form.card": "Cartão",
+    "form.referral": "Código de indicação",
     "form.submit": "Receber orientação ↗",
     "form.whatsapp": "Falar no WhatsApp",
     "form.note": "Conecte os links reais de pagamento no config.js antes do deploy final.",
@@ -242,6 +246,10 @@ const I18N = {
     "form.first": "First half of 2026",
     "form.second": "Second half of 2026",
     "form.later": "Not decided yet",
+    "form.paymentMethod": "Payment method",
+    "form.pix": "PIX",
+    "form.card": "Card",
+    "form.referral": "Referral code",
     "form.submit": "Get guidance ↗",
     "form.whatsapp": "Ask on WhatsApp",
     "form.note": "Connect the real payment links in config.js before the final deploy.",
@@ -367,6 +375,10 @@ const I18N = {
     "form.first": "Primeiro semestre de 2026",
     "form.second": "Segundo semestre de 2026",
     "form.later": "Ainda não decidi",
+    "form.paymentMethod": "Forma de pagamento",
+    "form.pix": "PIX",
+    "form.card": "Cartão",
+    "form.referral": "Código de indicação",
     "form.submit": "Receber orientação ↗",
     "form.whatsapp": "Falar no WhatsApp",
     "form.note": "Conecte os links reais de pagamento no config.js antes do deploy final.",
@@ -378,6 +390,7 @@ const I18N = {
 
 let language = localStorage.getItem('hng-language') || 'ko';
 const config = window.HNG_CONFIG || {};
+const CHECKOUT_STORAGE_KEY = 'hng-checkout-submissions-v1';
 const dialog = document.querySelector('#application-dialog');
 const form = document.querySelector('#application-form');
 const dialogSuccess = document.querySelector('.dialog-success');
@@ -413,6 +426,8 @@ function resetDialog() {
   if (form) {
     form.hidden = false;
     form.reset();
+    delete form.dataset.plan;
+    delete form.dataset.amount;
   }
   if (dialogSuccess) {
     dialogSuccess.hidden = true;
@@ -436,6 +451,14 @@ document.querySelectorAll('a[href^="#"]').forEach((link) => {
 document.querySelectorAll('[data-open-application]').forEach((button) => {
   button.addEventListener('click', () => {
     resetDialog();
+    if (form) {
+      form.dataset.plan = button.dataset.plan || button.closest('.plan-card')?.querySelector('h3')?.textContent || 'Plano H&G';
+      form.dataset.amount = button.dataset.amount || '';
+      const planField = form.querySelector('input[name="plan"]');
+      const amountField = form.querySelector('input[name="amount"]');
+      if (planField) planField.value = form.dataset.plan || '';
+      if (amountField) amountField.value = form.dataset.amount || '';
+    }
     dialog?.showModal();
   });
 });
@@ -459,13 +482,34 @@ form?.addEventListener('submit', async (event) => {
   if (!form.reportValidity()) return;
 
   const data = Object.fromEntries(new FormData(form).entries());
+  const checkoutRecord = {
+    id: `CHK-${Date.now()}`,
+    customer: data.name,
+    whatsapp: data.phone,
+    email: data.email,
+    plan: data.plan || form.dataset.plan || 'Plano H&G',
+    paymentMethod: data.paymentMethod || 'pix',
+    paymentDate: new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
+    amount: Number(data.amount || form.dataset.amount || 0),
+    referralCode: (data.referralCode || '').trim() || '—',
+    status: 'paid',
+  };
+
+  const existing = JSON.parse(localStorage.getItem(CHECKOUT_STORAGE_KEY) || '[]');
+  existing.unshift(checkoutRecord);
+  localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(existing.slice(0, 100)));
 
   if (config.leadEndpoint) {
     try {
       await fetch(config.leadEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, language, product: 'H&G Korea Settlement Program' })
+        body: JSON.stringify({
+          ...data,
+          ...checkoutRecord,
+          language,
+          product: 'H&G Korea Settlement Program'
+        })
       });
     } catch (error) {
       console.warn('Lead endpoint unavailable', error);
@@ -473,7 +517,7 @@ form?.addEventListener('submit', async (event) => {
   }
 
   const whatsapp = document.querySelector('.dialog-success a');
-  const message = `H&G application / ${data.name} / ${data.email} / ${data.phone} / ${data.arrival}`;
+  const message = `H&G application / ${data.name} / ${data.email} / ${data.phone} / ${data.arrival} / ${checkoutRecord.plan} / ${checkoutRecord.paymentMethod} / ${checkoutRecord.referralCode}`;
   if (whatsapp) {
     whatsapp.href = `https://wa.me/821055613505?text=${encodeURIComponent(message)}`;
   }

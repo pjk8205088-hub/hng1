@@ -73,7 +73,7 @@
             <del>R$ 3.980</del>
             <strong>R$ 2.980</strong>
           </div>
-          <button class="button button-primary full" type="button" data-open-application data-i18n="hero.panelButton">Quero receber de Seul ↗</button>
+          <button class="button button-primary full" type="button" data-open-application data-plan="Basic" data-amount="2980" data-i18n="hero.panelButton">Quero receber de Seul ↗</button>
           <p class="panel-help" data-i18n="hero.panelHelp">PIX ou cartão. O fluxo final de pagamento pode ser conectado depois no config.js.</p>
         </div>
       </aside>
@@ -114,7 +114,7 @@
               <p class="price-sub">Entrada de R$ 2.000,00 · saldo via PIX ou cartão</p>
             </div>
             <p class="installment" data-i18n="plans.basic.pay">PIX ou até 12x no cartão</p>
-            <button class="button button-primary full" type="button" data-open-application data-i18n="plans.basic.cta">Mais informações</button>
+            <button class="button button-primary full" type="button" data-open-application data-plan="Basic" data-amount="2980" data-i18n="plans.basic.cta">Mais informações</button>
           </div>
         </article>
 
@@ -144,7 +144,7 @@
               <p class="price-sub">Entrada de R$ 2.000,00 · 1 mês de estadia incluído</p>
             </div>
             <p class="installment" data-i18n="plans.standard.pay">PIX ou até 12x no cartão</p>
-            <button class="button button-primary full" type="button" data-open-application data-i18n="plans.standard.cta">Mais informações</button>
+            <button class="button button-primary full" type="button" data-open-application data-plan="Standard" data-amount="5480" data-i18n="plans.standard.cta">Mais informações</button>
           </div>
         </article>
 
@@ -174,7 +174,7 @@
               <p class="price-sub">Entrada de R$ 2.000,00 · suporte completo na Coreia</p>
             </div>
             <p class="installment" data-i18n="plans.allin.pay">PIX ou até 12x no cartão</p>
-            <button class="button button-primary full" type="button" data-open-application data-i18n="plans.allin.cta">Mais informações</button>
+            <button class="button button-primary full" type="button" data-open-application data-plan="All-In" data-amount="6480" data-i18n="plans.allin.cta">Mais informações</button>
           </div>
         </article>
       </div>
@@ -348,6 +348,8 @@
     </div>
 
     <form id="application-form">
+      <input type="hidden" name="plan">
+      <input type="hidden" name="amount">
       <label>
         <span data-i18n="form.name">Nome ou apelido</span>
         <input name="name" required placeholder="Ex.: Alex">
@@ -367,6 +369,17 @@
           <option data-i18n="form.second">Segundo semestre de 2026</option>
           <option data-i18n="form.later">Ainda não decidi</option>
         </select>
+      </label>
+      <label>
+        <span data-i18n="form.paymentMethod">Forma de pagamento</span>
+        <select name="paymentMethod" required>
+          <option value="pix" data-i18n="form.pix">PIX</option>
+          <option value="card" data-i18n="form.card">Cartão</option>
+        </select>
+      </label>
+      <label>
+        <span data-i18n="form.referral">Código de indicação</span>
+        <input name="referralCode" placeholder="Ex.: ANSA">
       </label>
 
       <div class="dialog-actions">

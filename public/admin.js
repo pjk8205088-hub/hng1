@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'hng-admin-state-v1';
+const CHECKOUT_STORAGE_KEY = 'hng-checkout-submissions-v1';
 
 const currency = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
@@ -152,12 +153,12 @@ function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      return structuredClone(defaultState);
+      return mergeCheckoutSubmissions(structuredClone(defaultState));
     }
-    return mergeState(JSON.parse(raw));
+    return mergeCheckoutSubmissions(mergeState(JSON.parse(raw)));
   } catch (error) {
     console.warn('Unable to load admin state, using defaults.', error);
-    return structuredClone(defaultState);
+    return mergeCheckoutSubmissions(structuredClone(defaultState));
   }
 }
 
@@ -181,6 +182,37 @@ function mergeState(input) {
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function mergeCheckoutSubmissions(baseState) {
+  try {
+    const raw = localStorage.getItem(CHECKOUT_STORAGE_KEY);
+    if (!raw) return baseState;
+    const submissions = JSON.parse(raw);
+    if (!Array.isArray(submissions) || !submissions.length) return baseState;
+
+    const existingIds = new Set((baseState.orders || []).map((order) => order.id));
+    const mapped = submissions
+      .filter((submission) => submission && !existingIds.has(submission.id))
+      .map((submission) => ({
+        id: submission.id,
+        customer: submission.customer || submission.name || '—',
+        whatsapp: submission.whatsapp || submission.phone || '—',
+        email: submission.email || '—',
+        plan: submission.plan || 'Plano H&G',
+        paymentMethod: submission.paymentMethod === 'card' ? 'card' : 'pix',
+        paymentDate: submission.paymentDate || '—',
+        amount: Number(submission.amount || 0),
+        referralCode: submission.referralCode || '—',
+        status: submission.status || 'paid',
+      }));
+
+    baseState.orders = [...mapped, ...(baseState.orders || [])];
+    return baseState;
+  } catch (error) {
+    console.warn('Unable to merge checkout submissions.', error);
+    return baseState;
+  }
 }
 
 function formatCurrency(value) {
