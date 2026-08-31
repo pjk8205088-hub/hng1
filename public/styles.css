@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500;700&family=Noto+Serif+KR:wght@400;600;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap');
 
 :root {
   --bg: #f6f3ec;
@@ -15,9 +15,9 @@
   --pink: #ff4fb4;
   --blue: #6aa7ff;
   --gold: #ffc44d;
-  --display: 'Noto Serif KR', Georgia, serif;
-  --body: 'Pretendard', 'Noto Sans KR', Arial, sans-serif;
-  --mono: 'DM Mono', 'SFMono-Regular', Consolas, monospace;
+  --display: 'Roboto', sans-serif;
+  --body: 'Roboto', sans-serif;
+  --mono: 'Roboto', sans-serif;
   --shadow: 12px 12px 0 rgba(21, 21, 21, 0.12);
 }
 

@@ -10,7 +10,7 @@
 }
 
 html, body {
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Roboto', sans-serif;
   color: var(--hng-text);
   background:
     radial-gradient(circle at top left, rgba(91, 141, 239, 0.10), transparent 34%),
