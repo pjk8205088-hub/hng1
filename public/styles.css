@@ -211,6 +211,13 @@ summary:focus-visible {
   transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 .button:hover { transform: translateY(-2px); }
+.button-with-icon {
+  gap: 8px;
+}
+.button-with-icon i {
+  font-size: 1.05em;
+  line-height: 1;
+}
 .button-primary {
   color: #fff;
   background: var(--accent);
@@ -779,24 +786,70 @@ summary:focus-visible {
 .payment-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   margin: 14px 0 16px;
 }
-.payment-strip span {
+.payment-badge {
   display: inline-flex;
   align-items: center;
-  min-height: 34px;
-  padding: 0 11px;
-  border: 1px solid rgba(21, 21, 21, 0.16);
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 14px 0 12px;
+  border: 1px solid rgba(21, 21, 21, 0.14);
+  border-radius: 999px;
   background: #fff;
-  font: 700 10px var(--mono);
+  box-shadow: 0 8px 18px rgba(21, 21, 21, 0.05);
+}
+.payment-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+.payment-mark--pix {
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #0f7f4f;
+  background: #e8f8ef;
+  font: 800 9px/1 var(--mono);
+  letter-spacing: 0.14em;
+}
+.payment-mark--mastercard {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  margin-right: 2px;
+}
+.payment-mark--mastercard span {
+  position: absolute;
+  top: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  opacity: 0.95;
+}
+.payment-mark--mastercard span:first-child {
+  left: 0;
+  background: #ea001b;
+}
+.payment-mark--mastercard span:last-child {
+  right: 0;
+  background: #ff5f00;
+}
+.payment-badge--mastercard .payment-label {
+  color: #312b2b;
+  font: 800 10px/1.1 var(--mono);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.payment-strip span:nth-child(1) { color: var(--accent); }
-.payment-strip span:nth-child(2) { color: var(--pink); }
-.payment-strip span:nth-child(3) { color: var(--blue); }
-.payment-strip span:nth-child(4) { color: #c98200; }
+.payment-mark--visa {
+  padding: 5px 9px 4px;
+  border-radius: 6px;
+  color: #fff;
+  background: linear-gradient(135deg, #1a4fb3, #245ec9);
+  font: 900 10px/1 var(--mono);
+  letter-spacing: 0.18em;
+}
 .payment-note {
   margin: 0;
   color: var(--muted);

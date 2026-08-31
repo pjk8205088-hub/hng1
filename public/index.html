@@ -240,9 +240,18 @@
             <p data-i18n="partner.copy">A ANSA cuida da preparação do visto, da passagem e do passo inicial antes da contratação do plano H&G, com cara de operação já instalada em Seul.</p>
           </div>
           <div class="partner-links">
-            <a class="button button-dark" href="https://wa.me/821055613505" target="_blank" rel="noreferrer" data-i18n="partner.whatsapp">WhatsApp ↗</a>
-            <a class="button button-ghost" href="https://www.instagram.com/hng_agency/" target="_blank" rel="noreferrer" data-i18n="partner.instagram">Instagram ↗</a>
-            <a class="button button-ghost" href="#" data-config-link="ansaWebsite" data-i18n="partner.website">Site oficial ↗</a>
+            <a class="button button-dark button-with-icon" href="https://wa.me/821055613505" target="_blank" rel="noreferrer">
+              <i class="bi bi-whatsapp" aria-hidden="true"></i>
+              <span data-i18n="partner.whatsapp">WhatsApp ↗</span>
+            </a>
+            <a class="button button-ghost button-with-icon" href="https://www.instagram.com/hng_agency/" target="_blank" rel="noreferrer">
+              <i class="bi bi-instagram" aria-hidden="true"></i>
+              <span data-i18n="partner.instagram">Instagram ↗</span>
+            </a>
+            <a class="button button-ghost button-with-icon" href="#" data-config-link="ansaWebsite">
+              <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+              <span data-i18n="partner.website">Site oficial ↗</span>
+            </a>
           </div>
         </div>
       </div>
@@ -279,23 +288,40 @@
         <div>
           <p class="eyebrow" data-i18n="contact.kicker">FALE CONOSCO</p>
           <h2 data-i18n="contact.title">Se quiser, podemos seguir por WhatsApp, Instagram ou e-mail.</h2>
-          <p data-i18n="contact.copy">A área abaixo também concentra as formas de pagamento pedidas no PDF: PIX, Mastercard, VISA e Elo.</p>
+          <p data-i18n="contact.copy">A área abaixo também concentra as formas de pagamento pedidas no PDF: PIX, Mastercard e VISA.</p>
         </div>
 
         <div class="contact-links">
-          <a class="button button-dark" href="https://wa.me/821055613505" target="_blank" rel="noreferrer" data-i18n="contact.whatsapp">WhatsApp ↗</a>
-          <a class="button button-ghost" href="https://www.instagram.com/hng_agency/" target="_blank" rel="noreferrer" data-i18n="contact.instagram">@hng_agency ↗</a>
-          <a class="button button-ghost" href="mailto:handgagency@gmail.com" data-i18n="contact.email">E-mail ↗</a>
+          <a class="button button-dark button-with-icon" href="https://wa.me/821055613505" target="_blank" rel="noreferrer">
+            <i class="bi bi-whatsapp" aria-hidden="true"></i>
+            <span data-i18n="contact.whatsapp">WhatsApp ↗</span>
+          </a>
+          <a class="button button-ghost button-with-icon" href="https://www.instagram.com/hng_agency/" target="_blank" rel="noreferrer">
+            <i class="bi bi-instagram" aria-hidden="true"></i>
+            <span data-i18n="contact.instagram">@hng_agency ↗</span>
+          </a>
+          <a class="button button-ghost button-with-icon" href="mailto:handgagency@gmail.com">
+            <i class="bi bi-envelope-fill" aria-hidden="true"></i>
+            <span data-i18n="contact.email">E-mail ↗</span>
+          </a>
         </div>
       </div>
 
       <div class="payment-card">
         <p class="eyebrow" data-i18n="contact.paymentsTitle">MEIOS DE PAGAMENTO</p>
         <div class="payment-strip">
-          <span>PIX</span>
-          <span>Mastercard</span>
-          <span>VISA</span>
-          <span>Elo</span>
+          <span class="payment-badge payment-badge--pix" aria-label="PIX">
+            <span class="payment-mark payment-mark--pix">PIX</span>
+          </span>
+          <span class="payment-badge payment-badge--mastercard" aria-label="Mastercard">
+            <span class="payment-mark payment-mark--mastercard" aria-hidden="true">
+              <span></span><span></span>
+            </span>
+            <span class="payment-label">Mastercard</span>
+          </span>
+          <span class="payment-badge payment-badge--visa" aria-label="VISA">
+            <span class="payment-mark payment-mark--visa">VISA</span>
+          </span>
         </div>
         <p class="payment-note" data-i18n="contact.paymentsNote">O botão verde da página leva para o passo de contratação. Os links de pagamento reais podem ser conectados depois no config.js.</p>
       </div>
@@ -316,9 +342,9 @@
       </div>
 
       <div class="footer-contact">
-        <p>WhatsApp: +82-10-5561-3505</p>
-        <p>Instagram: @hng_agency</p>
-        <p>E-mail: handgagency@gmail.com</p>
+        <p class="footer-contact-item"><i class="bi bi-whatsapp" aria-hidden="true"></i><span>WhatsApp: +82-10-5561-3505</span></p>
+        <p class="footer-contact-item"><i class="bi bi-instagram" aria-hidden="true"></i><span>Instagram: @hng_agency</span></p>
+        <p class="footer-contact-item"><i class="bi bi-envelope-fill" aria-hidden="true"></i><span>E-mail: handgagency@gmail.com</span></p>
       </div>
 
       <div class="footer-links">
