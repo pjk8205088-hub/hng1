@@ -807,12 +807,12 @@ summary:focus-visible {
   white-space: nowrap;
 }
 .payment-mark--pix {
-  display: block;
-  width: auto;
-  max-width: 140px;
-  height: 26px;
-  object-fit: contain;
-  background: transparent;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: #0f7f4f;
+  background: #e8f8ef;
+  font: 800 9px/1 var(--mono);
+  letter-spacing: 0.14em;
 }
 .payment-mark--mastercard {
   position: relative;
