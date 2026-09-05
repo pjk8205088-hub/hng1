@@ -455,7 +455,14 @@ Object.assign(I18N.ko, {
   "form.note": "신청 후 담당자가 PIX 또는 카드 결제 절차를 안내합니다.",
   "form.successTitle": "신청이 준비되었습니다.",
   "form.successBody": "왓츠앱으로 담당자에게 결제 안내를 받아보세요.",
-  "form.successCta": "왓츠앱 열기 ↗"
+  "form.successCta": "왓츠앱 열기 ↗",
+  "footer.welcome": "한국에 오신 것을 환영합니다",
+  "footer.whatsapp": "왓츠앱: +82-10-5561-3505",
+  "footer.instagram": "인스타그램: @hng_agency",
+  "footer.email": "이메일: handgagency@gmail.com",
+  "payment.mastercard": "마스터카드",
+  "payment.visa": "비자",
+  "footer.copyright": "© 2026 H&G Agency. 서울."
 });
 
 let language = localStorage.getItem('hng-language') || 'pt';
