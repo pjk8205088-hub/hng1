@@ -18,6 +18,77 @@ html, body {
     #f4f7fb;
 }
 
+.admin-shell .app-wrapper {
+  display: none;
+}
+
+.admin-shell.is-authenticated .app-wrapper {
+  display: block;
+}
+
+.admin-auth-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  background:
+    radial-gradient(circle at 15% 10%, rgba(91, 141, 239, 0.18), transparent 32%),
+    radial-gradient(circle at 90% 85%, rgba(22, 50, 79, 0.12), transparent 34%),
+    #f4f7fb;
+}
+
+.admin-auth-card {
+  width: min(100%, 430px);
+  padding: clamp(1.6rem, 5vw, 2.6rem);
+  background: #fff;
+  border: 1px solid var(--hng-border);
+  border-radius: 1.75rem;
+  box-shadow: var(--hng-shadow);
+}
+
+.admin-auth-mark {
+  width: 3.2rem;
+  height: 3.2rem;
+  display: grid;
+  place-items: center;
+  margin-bottom: 1.5rem;
+  border-radius: 1rem;
+  background: var(--hng-navy);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.admin-auth-card h1 {
+  margin-bottom: 0.45rem;
+  color: var(--hng-navy);
+  font-size: clamp(1.65rem, 4vw, 2.15rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.admin-auth-card .form-control {
+  border-color: var(--hng-border);
+  border-radius: 0.95rem;
+  box-shadow: none;
+}
+
+.admin-auth-card .form-control:focus {
+  border-color: var(--hng-blue);
+  box-shadow: 0 0 0 0.18rem rgba(91, 141, 239, 0.16);
+}
+
+.admin-login-error {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #f1b9b9;
+  border-radius: 0.85rem;
+  background: #fff3f3;
+  color: #9f1d1d;
+  font-size: 0.9rem;
+}
+
 .admin-shell .app-header,
 .admin-shell .app-footer,
 .admin-shell .app-content-header,
@@ -49,6 +120,10 @@ html, body {
 .admin-search-group {
   max-width: 360px;
   width: 100%;
+}
+
+.member-filter {
+  min-width: min(100%, 260px);
 }
 
 .admin-search-group .input-group-text,
@@ -199,5 +274,9 @@ html, body {
 
   .admin-preview {
     min-height: 220px;
+  }
+
+  .member-filter {
+    min-width: 100%;
   }
 }

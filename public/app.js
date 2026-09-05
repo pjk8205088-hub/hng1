@@ -37,7 +37,7 @@ const I18N = {
     "plans.basic.oldLabel": "De:",
     "plans.basic.newLabel": "Por apenas:",
     "plans.basic.pay": "PIX ou até 12x no cartão",
-    "plans.basic.cta": "Mais informações",
+    "plans.basic.cta": "Inscrever-se agora",
     "plans.standard.label": "PLANO 2 : STANDARD",
     "plans.standard.photo": "Foto: Quarto Sharehouse",
     "plans.standard.badge": "PROMOÇÃO DE LANÇAMENTO",
@@ -49,7 +49,7 @@ const I18N = {
     "plans.standard.oldLabel": "De:",
     "plans.standard.newLabel": "Por apenas:",
     "plans.standard.pay": "PIX ou até 12x no cartão",
-    "plans.standard.cta": "Mais informações",
+    "plans.standard.cta": "Inscrever-se agora",
     "plans.allin.label": "PLANO 3 : ALL-IN",
     "plans.allin.photo": "Foto: Aulas de Coreano",
     "plans.allin.badge": "PROMOÇÃO DE LANÇAMENTO",
@@ -61,7 +61,7 @@ const I18N = {
     "plans.allin.oldLabel": "De:",
     "plans.allin.newLabel": "Por apenas:",
     "plans.allin.pay": "PIX ou até 12x no cartão",
-    "plans.allin.cta": "Mais informações",
+    "plans.allin.cta": "Inscrever-se agora",
     "process.kicker": "HOW IT WORKS",
     "process.title": "Um fluxo em 3 etapas para sair do interesse no Brasil e chegar pronto em Seul.",
     "process.one.title": "Preparação do visto com a ANSA",
@@ -166,7 +166,7 @@ const I18N = {
     "plans.basic.oldLabel": "From:",
     "plans.basic.newLabel": "Only:",
     "plans.basic.pay": "PIX or up to 12x by card",
-    "plans.basic.cta": "More information",
+    "plans.basic.cta": "Apply now",
     "plans.standard.label": "PLAN 2 : STANDARD",
     "plans.standard.photo": "Photo: Sharehouse room",
     "plans.standard.badge": "LAUNCH PROMOTION",
@@ -178,7 +178,7 @@ const I18N = {
     "plans.standard.oldLabel": "From:",
     "plans.standard.newLabel": "Only:",
     "plans.standard.pay": "PIX or up to 12x by card",
-    "plans.standard.cta": "More information",
+    "plans.standard.cta": "Apply now",
     "plans.allin.label": "PLAN 3 : ALL-IN",
     "plans.allin.photo": "Photo: Korean class",
     "plans.allin.badge": "LAUNCH PROMOTION",
@@ -190,7 +190,7 @@ const I18N = {
     "plans.allin.oldLabel": "From:",
     "plans.allin.newLabel": "Only:",
     "plans.allin.pay": "PIX or up to 12x by card",
-    "plans.allin.cta": "More information",
+    "plans.allin.cta": "Apply now",
     "process.kicker": "HOW IT WORKS",
     "process.title": "A three-step flow to move from interest to a prepared arrival in Seoul.",
     "process.one.title": "Visa preparation with ANSA",
@@ -266,7 +266,7 @@ const I18N = {
     "nav.faq": "FAQ",
     "nav.contact": "Contato",
     "hero.kicker": "H&G AGENCY / DIRETO DE SEOUL",
-    "hero.title": "Feito em Seul para o seu primeiro ano na Coreia",
+    "hero.title": "Seu Working Holiday na Coreia",
     "hero.cta": "Ver planos ↘",
     "hero.secondary": "Falar com a equipe em Seul",
     "hero.panelLabel": "Seoul direto",
@@ -277,8 +277,8 @@ const I18N = {
     "hero.panelThree": "Care Day: ARC + conta bancária",
     "hero.panelFour": "Guia de SIM coreano",
     "hero.panelPriceLabel": "De",
-    "hero.panelButton": "Receber da Coreia ↗",
-    "hero.panelHelp": "PIX ou cartão podem ser conectados depois no config.js.",
+    "hero.panelButton": "Inscrever-se agora ↗",
+    "hero.panelHelp": "Escolha PIX ou cartão no formulário de inscrição e receba as próximas instruções.",
     "pricing.kicker": "PLANOS & PREÇO",
     "pricing.title": "Planos com aparência coreana: foto forte, preço claro e CTA que chama atenção na hora.",
     "pricing.lede": "Abaixo, a estrutura principal pede uma leitura rápida para quem está no Brasil ou na América do Sul.",
@@ -295,7 +295,7 @@ const I18N = {
     "plans.basic.oldLabel": "De:",
     "plans.basic.newLabel": "Por apenas:",
     "plans.basic.pay": "PIX ou até 12x no cartão",
-    "plans.basic.cta": "Mais informações",
+    "plans.basic.cta": "Inscrever-se agora",
     "plans.standard.label": "PLANO 2 : STANDARD",
     "plans.standard.photo": "Foto: Quarto Sharehouse",
     "plans.standard.badge": "PROMOÇÃO DE LANÇAMENTO",
@@ -307,7 +307,7 @@ const I18N = {
     "plans.standard.oldLabel": "De:",
     "plans.standard.newLabel": "Por apenas:",
     "plans.standard.pay": "PIX ou até 12x no cartão",
-    "plans.standard.cta": "Mais informações",
+    "plans.standard.cta": "Inscrever-se agora",
     "plans.allin.label": "PLANO 3 : ALL-IN",
     "plans.allin.photo": "Foto: Aulas de Coreano",
     "plans.allin.badge": "PROMOÇÃO DE LANÇAMENTO",
@@ -319,7 +319,7 @@ const I18N = {
     "plans.allin.oldLabel": "De:",
     "plans.allin.newLabel": "Por apenas:",
     "plans.allin.pay": "PIX ou até 12x no cartão",
-    "plans.allin.cta": "Mais informações",
+    "plans.allin.cta": "Inscrever-se agora",
     "process.kicker": "COMO FUNCIONA",
     "process.title": "Um fluxo em 3 etapas para sair do interesse no Brasil e chegar pronto em Seul.",
     "process.one.title": "Preparação do visto com a ANSA",
@@ -360,14 +360,14 @@ const I18N = {
     "contact.instagram": "@hng_agency ↗",
     "contact.email": "E-mail ↗",
     "contact.paymentsTitle": "MEIOS DE PAGAMENTO",
-    "contact.paymentsNote": "O botão verde leva para a etapa de contratação. Os links reais podem ser conectados depois no config.js.",
+    "contact.paymentsNote": "Escolha PIX ou cartão no formulário de inscrição. A equipe confirma os próximos passos pelo WhatsApp.",
     "footer.tagline": "Emprego, moradia e burocracia - um layout que parece montado em Seul para o público brasileiro.",
     "footer.terms": "Termos de Serviço",
     "footer.refund": "Política de Reembolso",
     "footer.apply": "Voltar para os planos ↗",
     "dialog.eyebrow": "APPLICATION / PAYMENT",
     "dialog.title": "Contratação e pagamento",
-    "dialog.copy": "Preencha seus dados para receber as instruções de pagamento e o contato do responsável.",
+    "dialog.copy": "Preencha seus dados e escolha PIX ou cartão para iniciar sua inscrição imediatamente.",
     "form.name": "Nome ou apelido",
     "form.email": "E-mail",
     "form.phone": "Telefone",
@@ -379,16 +379,16 @@ const I18N = {
     "form.pix": "PIX",
     "form.card": "Cartão",
     "form.referral": "Código de indicação",
-    "form.submit": "Receber orientação ↗",
+    "form.submit": "Continuar para o pagamento ↗",
     "form.whatsapp": "Falar no WhatsApp",
-    "form.note": "Conecte os links reais de pagamento no config.js antes do deploy final.",
+    "form.note": "Após o envio, a equipe confirma os dados e orienta a conclusão do pagamento por PIX ou cartão.",
     "form.successTitle": "Sua inscrição está pronta.",
     "form.successBody": "Fale com o responsável pelo WhatsApp para receber as instruções de pagamento rapidamente.",
     "form.successCta": "Abrir WhatsApp ↗"
   }
 };
 
-let language = localStorage.getItem('hng-language') || 'ko';
+let language = localStorage.getItem('hng-language') || 'pt';
 const config = window.HNG_CONFIG || {};
 const CHECKOUT_STORAGE_KEY = 'hng-checkout-submissions-v1';
 const dialog = document.querySelector('#application-dialog');
@@ -396,7 +396,7 @@ const form = document.querySelector('#application-form');
 const dialogSuccess = document.querySelector('.dialog-success');
 
 function applyLanguage(next) {
-  language = I18N[next] ? next : 'ko';
+  language = I18N[next] ? next : 'pt';
   localStorage.setItem('hng-language', language);
   document.documentElement.lang = language === 'pt' ? 'pt-BR' : language;
 
@@ -492,12 +492,27 @@ form?.addEventListener('submit', async (event) => {
     paymentDate: new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
     amount: Number(data.amount || form.dataset.amount || 0),
     referralCode: (data.referralCode || '').trim() || '—',
-    status: 'paid',
+    status: 'pending',
   };
 
   const existing = JSON.parse(localStorage.getItem(CHECKOUT_STORAGE_KEY) || '[]');
   existing.unshift(checkoutRecord);
   localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(existing.slice(0, 100)));
+
+  try {
+    await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...data,
+        ...checkoutRecord,
+        language,
+        product: 'H&G Korea Settlement Program',
+      }),
+    });
+  } catch (error) {
+    console.warn('Admin order endpoint unavailable', error);
+  }
 
   if (config.leadEndpoint) {
     try {

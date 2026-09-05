@@ -59,6 +59,28 @@ const defaultState = {
       status: 'pending',
     },
   ],
+  members: [
+    {
+      id: 'MEM-260825-001',
+      name: 'Mariana Silva',
+      whatsapp: '+55 11 98888-1201',
+      email: 'mariana@email.com',
+      plan: 'Pacote Turismo Coreia',
+      referralCode: 'ANSA',
+      joinedAt: '25/08/2026 09:42',
+      status: 'active',
+    },
+    {
+      id: 'MEM-260825-002',
+      name: 'Lucas Pereira',
+      whatsapp: '+55 21 97777-8822',
+      email: 'lucas@email.com',
+      plan: 'Pacote Estudante Internacional',
+      referralCode: 'SEOUL10',
+      joinedAt: '25/08/2026 10:18',
+      status: 'active',
+    },
+  ],
   referralCodes: [
     {
       code: 'ANSA',
@@ -126,11 +148,13 @@ const modalRefs = {
   order: new bootstrap.Modal(document.getElementById('orderModal')),
   partner: new bootstrap.Modal(document.getElementById('partnerModal')),
   codeDetail: new bootstrap.Modal(document.getElementById('codeDetailModal')),
+  member: new bootstrap.Modal(document.getElementById('memberModal')),
 };
 
 const el = {
   ordersBody: document.getElementById('ordersTableBody'),
   partnersBody: document.getElementById('partnersTableBody'),
+  membersBody: document.getElementById('membersTableBody'),
   activity: document.getElementById('activityTimeline'),
   tourismPreview: document.getElementById('tourismPreview'),
   studentPreview: document.getElementById('studentPreview'),
@@ -145,9 +169,15 @@ const el = {
   codeDetailSummary: document.getElementById('codeDetailSummary'),
   codeDetailBody: document.getElementById('codeDetailBody'),
   partnerModalTitle: document.getElementById('partnerModalTitle'),
+  memberModalTitle: document.getElementById('memberModalTitle'),
+  memberSearch: document.getElementById('memberSearch'),
+  memberStatusFilter: document.getElementById('memberStatusFilter'),
 };
 
 let activeOrderId = null;
+let remoteReady = false;
+let remoteSaveInFlight = false;
+let remoteSaveQueued = false;
 
 function loadState() {
   try {
@@ -168,6 +198,7 @@ function mergeState(input) {
     return merged;
   }
   merged.orders = Array.isArray(input.orders) && input.orders.length ? input.orders : merged.orders;
+  merged.members = Array.isArray(input.members) && input.members.length ? input.members : merged.members;
   merged.referralCodes = Array.isArray(input.referralCodes) && input.referralCodes.length ? input.referralCodes : merged.referralCodes;
   merged.products = {
     ...merged.products,
@@ -182,6 +213,32 @@ function mergeState(input) {
 
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  if (remoteReady) syncRemoteState();
+}
+
+async function syncRemoteState() {
+  if (remoteSaveInFlight) {
+    remoteSaveQueued = true;
+    return;
+  }
+  remoteSaveInFlight = true;
+  try {
+    const response = await fetch('/api/admin/state', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state),
+    });
+    if (!response.ok) throw new Error(`Admin state save failed (${response.status})`);
+  } catch (error) {
+    console.warn(error.message);
+  } finally {
+    remoteSaveInFlight = false;
+    if (remoteSaveQueued) {
+      remoteSaveQueued = false;
+      syncRemoteState();
+    }
+  }
 }
 
 function mergeCheckoutSubmissions(baseState) {
@@ -385,6 +442,47 @@ function renderPartners() {
   `).join('');
 }
 
+function memberStatusLabel(status) {
+  return status === 'inactive' ? 'Inativo' : 'Ativo';
+}
+
+function memberStatusClass(status) {
+  return status === 'inactive' ? 'badge-pending' : 'badge-paid';
+}
+
+function filteredMembers() {
+  const query = (el.memberSearch?.value || '').trim().toLowerCase();
+  const status = el.memberStatusFilter?.value || 'all';
+  return state.members.filter((member) => {
+    const haystack = [member.name, member.email, member.whatsapp, member.plan, member.referralCode].join(' ').toLowerCase();
+    return (!query || haystack.includes(query)) && (status === 'all' || member.status === status);
+  });
+}
+
+function renderMembers() {
+  if (!el.membersBody) return;
+  const members = filteredMembers();
+  if (!members.length) {
+    el.membersBody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary py-4">Nenhum membro encontrado.</td></tr>';
+    return;
+  }
+  el.membersBody.innerHTML = members.map((member) => `
+    <tr>
+      <td class="fw-semibold">${member.name}</td>
+      <td><a href="https://wa.me/${sanitizeDigits(member.whatsapp)}" target="_blank" rel="noreferrer">${member.whatsapp}</a></td>
+      <td><a href="mailto:${member.email}">${member.email}</a></td>
+      <td>${member.plan || '—'}</td>
+      <td><span class="text-uppercase fw-semibold">${member.referralCode || '—'}</span></td>
+      <td>${member.joinedAt || '—'}</td>
+      <td><span class="badge badge-soft ${memberStatusClass(member.status)}">${memberStatusLabel(member.status)}</span></td>
+      <td class="text-end text-nowrap">
+        <button class="btn btn-sm btn-outline-secondary" data-action="member-edit" data-id="${member.id}">Editar</button>
+        <button class="btn btn-sm btn-outline-danger ms-1" data-action="member-delete" data-id="${member.id}">Excluir</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
 function fillProductForm(form, product) {
   if (!form || !product) return;
   form.elements.title.value = product.title || '';
@@ -442,6 +540,7 @@ function renderAll() {
   renderMetrics();
   renderOrders();
   renderPartners();
+  renderMembers();
   renderProducts();
   renderActivity();
   renderCheckoutForm();
@@ -600,6 +699,67 @@ function savePartnerCode(event) {
   pushActivity('Código de parceiro salvo', `O código ${code} foi criado ou atualizado.`, 'agora', 'bi bi-people');
 }
 
+function openMemberForm(memberId = null) {
+  const form = document.getElementById('memberForm');
+  form.reset();
+  form.elements.originalId.value = '';
+  if (memberId) {
+    const member = state.members.find((item) => item.id === memberId);
+    if (!member) return;
+    el.memberModalTitle.textContent = `Editar membro ${member.name}`;
+    form.elements.originalId.value = member.id;
+    form.elements.name.value = member.name || '';
+    form.elements.whatsapp.value = member.whatsapp || '';
+    form.elements.email.value = member.email || '';
+    form.elements.plan.value = member.plan || '';
+    form.elements.referralCode.value = member.referralCode || '';
+    form.elements.status.value = member.status || 'active';
+  } else {
+    el.memberModalTitle.textContent = 'Novo membro';
+    form.elements.status.value = 'active';
+  }
+  modalRefs.member.show();
+}
+
+function saveMember(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const originalId = form.elements.originalId.value.trim();
+  const member = {
+    id: originalId || `MEM-${Date.now()}`,
+    name: form.elements.name.value.trim(),
+    whatsapp: form.elements.whatsapp.value.trim(),
+    email: form.elements.email.value.trim(),
+    plan: form.elements.plan.value.trim() || '—',
+    referralCode: form.elements.referralCode.value.trim().toUpperCase() || '—',
+    joinedAt: originalId ? (state.members.find((item) => item.id === originalId)?.joinedAt || '—') : new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
+    status: form.elements.status.value === 'inactive' ? 'inactive' : 'active',
+  };
+  if (!member.name || !member.email || !member.whatsapp) return;
+  const duplicate = state.members.find((item) => item.email.toLowerCase() === member.email.toLowerCase() && item.id !== originalId);
+  if (duplicate) {
+    toast('Já existe um membro com este e-mail.', 'danger');
+    return;
+  }
+  const index = state.members.findIndex((item) => item.id === originalId);
+  if (index >= 0) state.members[index] = member;
+  else state.members.unshift(member);
+  saveState();
+  renderMembers();
+  modalRefs.member.hide();
+  toast(`Membro ${member.name} salvo com sucesso.`);
+  pushActivity('Membro atualizado', `${member.name} foi incluído ou atualizado no cadastro.`, 'agora', 'bi bi-person-vcard');
+}
+
+function deleteMember(memberId) {
+  const member = state.members.find((item) => item.id === memberId);
+  if (!member || !confirm(`Excluir o cadastro de ${member.name}?`)) return;
+  state.members = state.members.filter((item) => item.id !== memberId);
+  saveState();
+  renderMembers();
+  toast(`Membro ${member.name} excluído.`, 'danger');
+}
+
 function openCodeDetails(code) {
   const entry = state.referralCodes.find((item) => item.code === code);
   if (!entry) return;
@@ -678,6 +838,9 @@ function bindEvents() {
   document.getElementById('globalSearch').addEventListener('input', renderOrders);
   document.getElementById('statusFilter').addEventListener('change', renderOrders);
   document.getElementById('paymentFilter').addEventListener('change', renderOrders);
+  el.memberSearch?.addEventListener('input', renderMembers);
+  el.memberStatusFilter?.addEventListener('change', renderMembers);
+  document.getElementById('newMemberBtn')?.addEventListener('click', () => openMemberForm());
 
   document.getElementById('ordersTableBody').addEventListener('click', (event) => {
     const button = event.target.closest('button[data-action]');
@@ -695,11 +858,20 @@ function bindEvents() {
     if (action === 'code-edit') openPartnerForm(code);
   });
 
+  document.getElementById('membersTableBody')?.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-action]');
+    if (!button) return;
+    const { action, id } = button.dataset;
+    if (action === 'member-edit') openMemberForm(id);
+    if (action === 'member-delete') deleteMember(id);
+  });
+
   document.getElementById('modalRefundBtn').addEventListener('click', () => {
     if (activeOrderId) refundOrder(activeOrderId);
   });
 
   document.getElementById('partnerForm').addEventListener('submit', savePartnerCode);
+  document.getElementById('memberForm')?.addEventListener('submit', saveMember);
 
   document.getElementById('checkoutSettingsForm').addEventListener('submit', (event) => {
     event.preventDefault();
@@ -718,6 +890,11 @@ function bindEvents() {
       updateProductPreview(type);
     });
   });
+
+  document.getElementById('adminLogoutButton')?.addEventListener('click', async () => {
+    await fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' });
+    window.location.reload();
+  });
 }
 
 function updateProductPreview(type) {
@@ -729,5 +906,71 @@ function updateProductPreview(type) {
   }
 }
 
+async function initializeAdmin() {
+  const authScreen = document.getElementById('adminAuthScreen');
+  const appShell = document.querySelector('.admin-shell');
+  const loginForm = document.getElementById('adminLoginForm');
+  const loginError = document.getElementById('adminLoginError');
+  const loginButton = document.getElementById('adminLoginButton');
+
+  const showLogin = (message = '') => {
+    appShell.classList.remove('is-authenticated');
+    authScreen.hidden = false;
+    loginError.textContent = message;
+    loginError.hidden = !message;
+  };
+
+  const showApp = () => {
+    appShell.classList.add('is-authenticated');
+    authScreen.hidden = true;
+  };
+
+  const loadRemoteState = async () => {
+    const response = await fetch('/api/admin/state', { credentials: 'same-origin' });
+    if (!response.ok) throw new Error('Unable to load admin data.');
+    const remote = await response.json();
+    const hasRemoteData = remote.orders?.length || remote.members?.length || remote.referralCodes?.length || Object.keys(remote.products || {}).length;
+    if (hasRemoteData) {
+      Object.assign(state, mergeState(remote));
+    }
+    mergeCheckoutSubmissions(state);
+    remoteReady = true;
+  };
+
+  loginForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!loginForm.reportValidity()) return;
+    loginButton.disabled = true;
+    loginError.hidden = true;
+    try {
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginForm.elements.email.value, password: loginForm.elements.password.value }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Não foi possível entrar.');
+      await loadRemoteState();
+      showApp();
+      renderAll();
+    } catch (error) {
+      showLogin(error.message);
+    } finally {
+      loginButton.disabled = false;
+    }
+  });
+
+  try {
+    const response = await fetch('/api/admin/session', { credentials: 'same-origin' });
+    if (!response.ok) return showLogin();
+    await loadRemoteState();
+    showApp();
+    renderAll();
+  } catch (error) {
+    showLogin('O painel precisa ser configurado no servidor antes do primeiro acesso.');
+  }
+}
+
 bindEvents();
-renderAll();
+initializeAdmin();

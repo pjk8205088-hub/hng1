@@ -3,3 +3,6 @@ node_modules/
 *.zip
 __pycache__/
 tmp/
+data/admin-data.json
+data/admin-data.json.tmp
+.env

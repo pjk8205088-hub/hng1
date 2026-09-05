@@ -1194,3 +1194,276 @@ summary:focus-visible {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* PT-BR refresh: clean white and soft blue visual system */
+:root {
+  --bg: #f7faff;
+  --bg-strong: #edf4fb;
+  --panel: #12385d;
+  --panel-2: #1d4f7d;
+  --paper: #ffffff;
+  --ink: #17324d;
+  --muted: #60758a;
+  --line: #d8e5f1;
+  --accent: #1769d1;
+  --accent-strong: #0d4f9e;
+  --accent-soft: #edf6ff;
+  --pink: #1769d1;
+  --blue: #4d9af0;
+  --gold: #1769d1;
+  --shadow: none;
+}
+
+body {
+  color: var(--ink);
+  background: #f7faff;
+}
+
+body::before,
+.hero-copy h1::after {
+  display: none;
+}
+
+.site-header {
+  background: rgba(255, 255, 255, 0.96);
+  border-bottom: 1px solid var(--line);
+  box-shadow: none;
+}
+
+.brand-mark {
+  background: var(--accent-soft);
+}
+
+.language-switcher {
+  border-color: var(--line);
+}
+
+.language-switcher button[aria-pressed="true"],
+.language-switcher button:hover {
+  color: #fff;
+  background: var(--accent);
+}
+
+.hero {
+  padding: 42px 24px 24px;
+  border: 1px solid var(--line);
+  border-radius: 30px;
+  background: #fff;
+  box-shadow: none;
+}
+
+.hero-copy h1,
+.section-heading h2,
+.hero-panel h2,
+.plan-copy h3,
+.steps-card h3,
+.service-detail-card h2,
+.partner-card h2,
+.contact-card h2,
+.faq-list summary,
+.dialog-heading h2,
+.dialog-success strong {
+  letter-spacing: -0.04em;
+}
+
+.hero-visual-photo {
+  min-height: 360px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: #eaf3fc;
+  box-shadow: none;
+}
+
+.hero-visual-photo img {
+  filter: saturate(0.98) contrast(1.02);
+}
+
+.hero-visual-overlay,
+.hero-visual-stamp,
+.hero-visual-chip {
+  display: none;
+}
+
+.hero-visual-card,
+.hero-panel {
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--accent-soft);
+  box-shadow: none;
+}
+
+.hero-visual-card .panel-body,
+.hero-visual-card .panel-help {
+  color: var(--muted);
+}
+
+.hero-visual-card .panel-list li {
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.hero-visual-card .panel-price {
+  border-top-color: var(--line);
+}
+
+.hero-visual-card .panel-price span,
+.hero-visual-card .panel-price del {
+  color: var(--muted);
+}
+
+.hero-visual-card .panel-price strong {
+  color: var(--ink);
+}
+
+.button,
+.button-primary,
+.button-ghost,
+.button-dark,
+.plan-card,
+.service-detail-card,
+.partner-card,
+.contact-card,
+.payment-card,
+.steps-card,
+.faq-list details,
+.application-dialog,
+.price-block,
+.service-list li {
+  border-radius: 18px;
+  box-shadow: none !important;
+}
+
+.button {
+  border-color: var(--line);
+}
+
+.button-primary {
+  color: #fff;
+  background: var(--accent);
+}
+
+.button-primary:hover {
+  background: var(--accent-strong);
+  box-shadow: none;
+}
+
+.button-ghost {
+  color: var(--accent-strong);
+  background: #fff;
+}
+
+.button-ghost:hover,
+.button-dark {
+  color: #fff;
+  background: var(--panel);
+}
+
+.plan-card,
+.steps-card,
+.contact-card,
+.payment-card,
+.faq-list details {
+  border-color: var(--line);
+  background: #fff;
+}
+
+.plan-card {
+  border-radius: 24px;
+}
+
+.plan-photo {
+  border-top-color: var(--line);
+  border-bottom-color: var(--line);
+}
+
+.plan-photo span {
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(23, 50, 77, 0.76);
+}
+
+.plan-status,
+.plan-status.few {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+.plan-origin,
+.plan-copy li::before,
+.promo-tag,
+.price-caption {
+  color: var(--accent);
+}
+
+.plan-chip {
+  border-color: #bcd6f0;
+  border-radius: 999px;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+
+.plan-copy ul,
+.price-block,
+.service-list li {
+  border-color: var(--line);
+}
+
+.price-block {
+  background: var(--accent-soft);
+}
+
+.price-row strong {
+  color: var(--ink);
+}
+
+.service-detail-card {
+  background: var(--accent-soft);
+}
+
+.partner-card {
+  background: var(--accent-soft);
+}
+
+.payment-badge {
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+.site-footer {
+  color: rgba(255, 255, 255, 0.8);
+  background: var(--panel);
+}
+
+.application-dialog {
+  border-color: var(--line);
+  background: #fff;
+}
+
+.application-dialog::backdrop {
+  background: rgba(23, 50, 77, 0.42);
+}
+
+@media (max-width: 720px) {
+  .hero {
+    padding: 22px 14px 14px;
+    border-radius: 22px;
+  }
+
+  .hero-visual-photo {
+    min-height: 230px;
+    border-radius: 18px;
+  }
+
+  .hero-visual-card,
+  .plan-card,
+  .steps-card,
+  .service-detail-card,
+  .partner-card,
+  .contact-card,
+  .payment-card,
+  .faq-list details,
+  .application-dialog {
+    border-radius: 18px;
+    box-shadow: none !important;
+  }
+}

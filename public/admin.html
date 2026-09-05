@@ -15,6 +15,22 @@
   <link rel="stylesheet" href="/admin.css">
 </head>
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary admin-shell">
+<section class="admin-auth-screen" id="adminAuthScreen" aria-labelledby="adminAuthTitle">
+  <div class="admin-auth-card">
+    <div class="admin-auth-mark">H&amp;G</div>
+    <p class="text-uppercase text-primary fw-semibold small mb-2">Área restrita</p>
+    <h1 id="adminAuthTitle">Entrar no painel H&amp;G</h1>
+    <p class="text-secondary mb-4">Use sua conta de administrador para consultar pedidos, membros e produtos.</p>
+    <form id="adminLoginForm" novalidate>
+      <label class="form-label" for="adminEmail">E-mail</label>
+      <input class="form-control mb-3" id="adminEmail" name="email" type="email" autocomplete="username" required>
+      <label class="form-label" for="adminPassword">Senha</label>
+      <input class="form-control mb-3" id="adminPassword" name="password" type="password" autocomplete="current-password" required>
+      <p class="admin-login-error" id="adminLoginError" role="alert" hidden></p>
+      <button class="btn btn-primary w-100" id="adminLoginButton" type="submit"><i class="bi bi-box-arrow-in-right me-2"></i>Entrar</button>
+    </form>
+  </div>
+</section>
 <div class="app-wrapper">
   <nav class="app-header navbar navbar-expand bg-white border-bottom">
     <div class="container-fluid gap-2">
@@ -42,6 +58,10 @@
           <i class="bi bi-house-door"></i>
           Ver site
         </a>
+        <button class="btn btn-outline-secondary d-inline-flex align-items-center gap-2" id="adminLogoutButton" type="button">
+          <i class="bi bi-box-arrow-right"></i>
+          Sair
+        </button>
       </div>
     </div>
   </nav>
@@ -59,6 +79,7 @@
         <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="menu" data-accordion="false">
           <li class="nav-item"><a href="#dashboard" class="nav-link active"><i class="nav-icon bi bi-speedometer2"></i><p>Painel</p></a></li>
           <li class="nav-item"><a href="#orders" class="nav-link"><i class="nav-icon bi bi-receipt-cutoff"></i><p>Pedidos</p></a></li>
+          <li class="nav-item"><a href="#members" class="nav-link"><i class="nav-icon bi bi-person-vcard"></i><p>Membros</p></a></li>
           <li class="nav-item"><a href="#partners" class="nav-link"><i class="nav-icon bi bi-people"></i><p>Códigos parceiros</p></a></li>
           <li class="nav-item"><a href="#products" class="nav-link"><i class="nav-icon bi bi-box-seam"></i><p>Produtos</p></a></li>
           <li class="nav-item"><a href="#checkout" class="nav-link"><i class="nav-icon bi bi-credit-card"></i><p>Checkout</p></a></li>
@@ -199,6 +220,47 @@
                       </tr>
                     </thead>
                     <tbody id="partnersTableBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3 mt-1" id="members">
+          <div class="col-12">
+            <div class="card card-outline card-secondary shadow-sm admin-card">
+              <div class="card-header d-flex align-items-center justify-content-between gap-3 flex-wrap">
+                <div>
+                  <h3 class="card-title fw-bold mb-1">Membros e clientes</h3>
+                  <p class="text-secondary small mb-0">Acompanhe os contatos que iniciaram uma compra ou foram cadastrados pela equipe.</p>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                  <input class="form-control form-control-sm member-filter" id="memberSearch" type="search" placeholder="Buscar nome, e-mail ou WhatsApp" aria-label="Buscar membros">
+                  <select class="form-select form-select-sm" id="memberStatusFilter" aria-label="Filtrar status">
+                    <option value="all">Todos os status</option>
+                    <option value="active">Ativo</option>
+                    <option value="inactive">Inativo</option>
+                  </select>
+                  <button class="btn btn-sm btn-outline-secondary" id="newMemberBtn" type="button"><i class="bi bi-person-plus me-1"></i>Novo membro</button>
+                </div>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-hover align-middle mb-0 admin-table">
+                    <thead class="table-light">
+                      <tr>
+                        <th>Nome</th>
+                        <th>WhatsApp</th>
+                        <th>E-mail</th>
+                        <th>Plano</th>
+                        <th>Código</th>
+                        <th>Cadastro</th>
+                        <th>Status</th>
+                        <th class="text-end">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody id="membersTableBody"></tbody>
                   </table>
                 </div>
               </div>
@@ -371,7 +433,7 @@
 
   <footer class="app-footer bg-white border-top">
     <div class="container-fluid py-2 d-flex flex-wrap justify-content-between gap-2 small text-secondary">
-      <span>H&G Admin • Painel local com persistência em localStorage</span>
+      <span>H&amp;G Admin • Pedidos e cadastros protegidos por login</span>
       <span>AdminLTE 4.8.5 via CDN</span>
     </div>
   </footer>
@@ -466,6 +528,56 @@
             <tbody id="codeDetailBody"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="memberModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content rounded-4">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title fw-bold mb-1" id="memberModalTitle">Novo membro</h5>
+          <small class="text-secondary">Mantenha os dados usados pelo suporte e pela jornada de compra.</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <form class="row g-3" id="memberForm">
+          <input type="hidden" name="originalId">
+          <div class="col-md-6">
+            <label class="form-label">Nome</label>
+            <input class="form-control" name="name" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">WhatsApp</label>
+            <input class="form-control" name="whatsapp" placeholder="+55 11 99999-9999" required>
+          </div>
+          <div class="col-md-7">
+            <label class="form-label">E-mail</label>
+            <input class="form-control" name="email" type="email" required>
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">Status</label>
+            <select class="form-select" name="status">
+              <option value="active">Ativo</option>
+              <option value="inactive">Inativo</option>
+            </select>
+          </div>
+          <div class="col-md-7">
+            <label class="form-label">Plano</label>
+            <input class="form-control" name="plan" placeholder="Pacote Turismo Coreia">
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">Código de indicação</label>
+            <input class="form-control" name="referralCode" placeholder="ANSA">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-primary" form="memberForm"><i class="bi bi-save me-1"></i>Salvar membro</button>
       </div>
     </div>
   </div>
