@@ -493,8 +493,7 @@ function savedLanguage() {
   }
 }
 
-// The public site is permanently presented in Brazilian Portuguese.
-// Ignore stale URL/localStorage language choices so visitors always see PT-BR.
+// PT-BR is the default entry language; visitors may still switch languages.
 let language = 'pt';
 const config = window.HNG_CONFIG || {};
 const CHECKOUT_STORAGE_KEY = 'hng-checkout-submissions-v1';
@@ -503,7 +502,7 @@ const form = document.querySelector('#application-form');
 const dialogSuccess = document.querySelector('.dialog-success');
 
 function applyLanguage(next) {
-  language = 'pt';
+  language = normalizeLanguage(next) || 'pt';
   try {
     localStorage.setItem('hng-language', language);
   } catch {
