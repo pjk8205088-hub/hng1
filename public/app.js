@@ -493,7 +493,9 @@ function savedLanguage() {
   }
 }
 
-let language = normalizeLanguage(new URLSearchParams(location.search).get('lang')) || savedLanguage() || 'pt';
+// The public site is permanently presented in Brazilian Portuguese.
+// Ignore stale URL/localStorage language choices so visitors always see PT-BR.
+let language = 'pt';
 const config = window.HNG_CONFIG || {};
 const CHECKOUT_STORAGE_KEY = 'hng-checkout-submissions-v1';
 const dialog = document.querySelector('#application-dialog');
@@ -501,7 +503,7 @@ const form = document.querySelector('#application-form');
 const dialogSuccess = document.querySelector('.dialog-success');
 
 function applyLanguage(next) {
-  language = normalizeLanguage(next) || 'pt';
+  language = 'pt';
   try {
     localStorage.setItem('hng-language', language);
   } catch {
