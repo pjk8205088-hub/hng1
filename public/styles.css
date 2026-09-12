@@ -44,6 +44,8 @@ body::before {
   background-size: 8px 8px;
 }
 a { color: inherit; text-decoration: none; }
+.admin-only-link { display: none; }
+body.is-korean .admin-only-link { display: inline-flex; }
 button, input, select { font: inherit; }
 button { cursor: pointer; }
 button:focus-visible,

@@ -7,6 +7,7 @@ const I18N = {
     "nav.partner": "파트너",
     "nav.faq": "자주 묻는 질문",
     "nav.contact": "문의",
+    "nav.admin": "관리자",
     "hero.kicker": "H&G 에이전시 / 서울 직영",
     "hero.title": "한국에서 시작하는 첫 워킹홀리데이",
     "hero.cta": "플랜 보기 ↘",
@@ -166,6 +167,7 @@ const I18N = {
     "nav.partner": "Partner",
     "nav.faq": "FAQ",
     "nav.contact": "Contact",
+    "nav.admin": "Admin",
     "hero.kicker": "H&G AGENCY / DIRETO DE SEOUL",
     "hero.title": "A simple and reliable way to start your first year in Korea",
     "hero.cta": "See plans ↘",
@@ -325,6 +327,7 @@ const I18N = {
     "nav.partner": "Parceira",
     "nav.faq": "FAQ",
     "nav.contact": "Contato",
+    "nav.admin": "Admin",
     "hero.kicker": "H&G AGENCY / DIRETO DE SEOUL",
     "hero.title": "Seu Working Holiday na Coreia",
     "hero.cta": "Ver planos ↘",
@@ -509,6 +512,7 @@ function applyLanguage(next) {
     // Language switching still works when the browser blocks storage.
   }
   document.documentElement.lang = language === 'pt' ? 'pt-BR' : language;
+  document.body.classList.toggle('is-korean', language === 'ko');
   const copy = I18N[language];
   document.title = copy['page.title'];
   document.querySelector('meta[name="description"]')?.setAttribute('content', copy['page.description']);
