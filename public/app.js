@@ -623,7 +623,7 @@ form?.addEventListener('submit', async (event) => {
   localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify(existing.slice(0, 100)));
 
   try {
-    await fetch('/api/checkout', {
+    const checkoutResponse = await fetch('/api/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -633,6 +633,27 @@ form?.addEventListener('submit', async (event) => {
         product: 'H&G Korea Settlement Program',
       }),
     });
+    if (checkoutRecord.paymentMethod === 'pix' && checkoutResponse.ok) {
+      const paymentResponse = await fetch('/api/payments/mercadopago/pix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...checkoutRecord, orderId: checkoutRecord.id }) });
+      if (paymentResponse.ok) {
+        const payment = await paymentResponse.json();
+        const panel = document.querySelector('.pix-payment');
+        const qr = document.querySelector('.pix-qr');
+        const copy = document.querySelector('.pix-copy');
+        if (panel && (payment.qrCode || payment.qrCodeBase64)) {
+          panel.hidden = false;
+          if (payment.qrCodeBase64) { qr.src = `data:image/png;base64,${payment.qrCodeBase64}`; qr.hidden = false; }
+          if (copy) copy.value = payment.qrCode || '';
+        }
+      }
+    }
+    if (checkoutRecord.paymentMethod === 'card' && checkoutResponse.ok) {
+      const paymentResponse = await fetch('/api/payments/mercadopago/card', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...checkoutRecord, orderId: checkoutRecord.id }) });
+      if (paymentResponse.ok) {
+        const payment = await paymentResponse.json();
+        if (payment.checkoutUrl) window.location.assign(payment.checkoutUrl);
+      }
+    }
   } catch (error) {
     console.warn('Admin order endpoint unavailable', error);
   }
@@ -662,6 +683,11 @@ form?.addEventListener('submit', async (event) => {
 
   if (form) form.hidden = true;
   if (dialogSuccess) dialogSuccess.hidden = false;
+});
+
+document.querySelector('.pix-copy-button')?.addEventListener('click', async () => {
+  const copy = document.querySelector('.pix-copy');
+  if (copy?.value) await navigator.clipboard.writeText(copy.value);
 });
 
 applyLanguage(language);

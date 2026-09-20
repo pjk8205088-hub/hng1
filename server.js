@@ -9,6 +9,11 @@ const dataFile = process.env.ADMIN_DATA_FILE || path.join(dataDir, 'admin-data.j
 const port = Number(process.env.PORT || 3000);
 const sessionTtlMs = 8 * 60 * 60 * 1000;
 const sessions = new Map();
+const planCatalog = new Map([
+  ['basic', { name: 'Plano Basic', amount: 2980 }],
+  ['standard', { name: 'Plano Standard', amount: 5480 }],
+  ['all-in', { name: 'Plano All-In', amount: 6480 }],
+]);
 
 const mimeTypes = new Map([
   ['.html', 'text/html; charset=utf-8'],
@@ -96,6 +101,11 @@ function cleanText(value, maxLength = 240) {
   return String(value ?? '').trim().slice(0, maxLength);
 }
 
+function resolvePlan(value) {
+  const key = cleanText(value, 80).toLowerCase();
+  return planCatalog.get(key) || null;
+}
+
 function parseCookies(req) {
   return Object.fromEntries((req.headers.cookie || '').split(';').filter(Boolean).map((part) => {
     const index = part.indexOf('=');
@@ -127,6 +137,20 @@ function createSession() {
 
 function sessionCookie(token, maxAge = Math.floor(sessionTtlMs / 1000)) {
   return `hng_admin_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
+}
+
+function mercadoPagoConfigured() {
+  return Boolean(process.env.MP_ACCESS_TOKEN);
+}
+
+async function mercadoPagoRequest(pathname, options = {}) {
+  const response = await fetch(`https://api.mercadopago.com${pathname}`, {
+    ...options,
+    headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`, 'Content-Type': 'application/json', ...(options.headers || {}) },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.message || `Mercado Pago request failed (${response.status}).`);
+  return payload;
 }
 
 function resolveFile(requestPath) {
@@ -169,15 +193,17 @@ async function handleApi(req, res, pathname) {
   if (pathname === '/api/checkout' && req.method === 'POST') {
     const body = await readJson(req, 64 * 1024);
     const now = new Date();
+    const selectedPlan = resolvePlan(body.plan);
+    if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
     const order = {
       id: cleanText(body.id, 80) || `CHK-${Date.now()}`,
       customer: cleanText(body.customer || body.name, 120) || 'Cliente sem nome',
       whatsapp: cleanText(body.whatsapp || body.phone, 80),
       email: cleanText(body.email, 160),
-      plan: cleanText(body.plan, 160) || 'Plano H&G',
+      plan: selectedPlan.name,
       paymentMethod: body.paymentMethod === 'card' ? 'card' : 'pix',
       paymentDate: cleanText(body.paymentDate, 40) || now.toLocaleString('pt-BR'),
-      amount: Number(body.amount || 0),
+      amount: selectedPlan.amount,
       referralCode: cleanText(body.referralCode, 80) || '—',
       status: 'pending',
     };
@@ -198,6 +224,67 @@ async function handleApi(req, res, pathname) {
     else data.members = [member, ...data.members].slice(0, 500);
     saveData();
     return sendJson(res, 201, { ok: true, orderId: order.id });
+  }
+
+  if (pathname === '/api/payments/mercadopago/pix' && req.method === 'POST') {
+    if (!mercadoPagoConfigured()) return sendJson(res, 503, { error: 'Mercado Pago is not configured.' });
+    const body = await readJson(req, 64 * 1024);
+    const selectedPlan = resolvePlan(body.plan);
+    if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
+    const amount = selectedPlan.amount;
+    const orderId = cleanText(body.orderId, 80) || `CHK-${Date.now()}`;
+    const payment = await mercadoPagoRequest('/v1/payments', {
+      method: 'POST',
+      headers: { 'X-Idempotency-Key': orderId },
+      body: JSON.stringify({
+        transaction_amount: Math.round(amount * 100) / 100,
+        description: selectedPlan.name,
+        payment_method_id: 'pix',
+        payer: { email: cleanText(body.email, 160), first_name: cleanText(body.customer || body.name, 80) || 'Cliente' },
+        external_reference: orderId,
+        ...(process.env.MP_WEBHOOK_URL ? { notification_url: process.env.MP_WEBHOOK_URL } : {}),
+      }),
+    });
+    const pix = payment.point_of_interaction?.transaction_data || {};
+    const orderIndex = data.orders.findIndex((item) => item.id === orderId);
+    if (orderIndex >= 0) { data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'mercadopago', providerPaymentId: String(payment.id), status: payment.status || 'pending' }; saveData(); }
+    return sendJson(res, 201, { ok: true, provider: 'mercadopago', paymentId: payment.id, status: payment.status, qrCode: pix.qr_code || '', qrCodeBase64: pix.qr_code_base64 || '', ticketUrl: pix.ticket_url || '' });
+  }
+
+  if (pathname === '/api/payments/mercadopago/card' && req.method === 'POST') {
+    if (!mercadoPagoConfigured()) return sendJson(res, 503, { error: 'Mercado Pago is not configured.' });
+    const body = await readJson(req, 64 * 1024);
+    const selectedPlan = resolvePlan(body.plan);
+    if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
+    const amount = selectedPlan.amount;
+    const orderId = cleanText(body.orderId, 80) || `CHK-${Date.now()}`;
+    const preference = await mercadoPagoRequest('/checkout/preferences', {
+      method: 'POST',
+      headers: { 'X-Idempotency-Key': orderId },
+      body: JSON.stringify({
+        items: [{ id: orderId, title: selectedPlan.name, quantity: 1, currency_id: 'BRL', unit_price: amount }],
+        payer: { name: cleanText(body.customer || body.name, 120), email: cleanText(body.email, 160) },
+        external_reference: orderId,
+        ...(process.env.MP_WEBHOOK_URL ? { notification_url: process.env.MP_WEBHOOK_URL } : {}),
+        back_urls: { success: 'https://www.hng1.com/?payment=success', failure: 'https://www.hng1.com/?payment=failure', pending: 'https://www.hng1.com/?payment=pending' },
+        auto_return: 'approved',
+      }),
+    });
+    return sendJson(res, 201, { ok: true, provider: 'mercadopago', preferenceId: preference.id, checkoutUrl: preference.init_point || preference.sandbox_init_point || '' });
+  }
+
+  if (pathname === '/api/webhooks/mercadopago' && (req.method === 'POST' || req.method === 'GET')) {
+    if (req.method === 'GET') return sendJson(res, 200, { ok: true });
+    const body = await readJson(req, 64 * 1024);
+    const paymentId = body.data?.id || body.id;
+    if (paymentId && mercadoPagoConfigured()) {
+      try {
+        const payment = await mercadoPagoRequest(`/v1/payments/${encodeURIComponent(paymentId)}`);
+        const orderIndex = data.orders.findIndex((item) => item.id === payment.external_reference);
+        if (orderIndex >= 0) { data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'mercadopago', status: payment.status || data.orders[orderIndex].status }; saveData(); }
+      } catch (error) { console.warn('Mercado Pago webhook lookup failed:', error.message); }
+    }
+    return sendJson(res, 200, { ok: true });
   }
 
   if (!pathname.startsWith('/api/admin/')) return false;
