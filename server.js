@@ -97,6 +97,28 @@ function readJson(req, maxBytes = 512 * 1024) {
   });
 }
 
+function readJsonWithRawBody(req, maxBytes = 512 * 1024) {
+  return new Promise((resolve, reject) => {
+    let rawBody = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk) => {
+      rawBody += chunk;
+      if (Buffer.byteLength(rawBody, 'utf8') > maxBytes) {
+        reject(new Error('Payload too large'));
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      try {
+        resolve({ body: rawBody ? JSON.parse(rawBody) : {}, rawBody });
+      } catch {
+        reject(new Error('Invalid JSON'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
 function cleanText(value, maxLength = 240) {
   return String(value ?? '').trim().slice(0, maxLength);
 }
@@ -139,18 +161,58 @@ function sessionCookie(token, maxAge = Math.floor(sessionTtlMs / 1000)) {
   return `hng_admin_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
 }
 
-function mercadoPagoConfigured() {
-  return Boolean(process.env.MP_ACCESS_TOKEN);
+function dLocalConfigured() {
+  return Boolean(process.env.DLOCAL_X_LOGIN && process.env.DLOCAL_X_TRANS_KEY && process.env.DLOCAL_SECRET_KEY);
 }
 
-async function mercadoPagoRequest(pathname, options = {}) {
-  const response = await fetch(`https://api.mercadopago.com${pathname}`, {
-    ...options,
-    headers: { Authorization: `Bearer ${process.env.MP_ACCESS_TOKEN}`, 'Content-Type': 'application/json', ...(options.headers || {}) },
+function dLocalSignature(date, requestBody) {
+  return crypto.createHmac('sha256', process.env.DLOCAL_SECRET_KEY)
+    .update(`${process.env.DLOCAL_X_LOGIN}${date}${requestBody}`)
+    .digest('hex');
+}
+
+async function dLocalRequest(pathname, requestPayload, idempotencyKey = '') {
+  const requestBody = JSON.stringify(requestPayload);
+  const date = new Date().toISOString();
+  const response = await fetch(`${process.env.DLOCAL_API_BASE || 'https://api.dlocal.com'}${pathname}`, {
+    method: 'POST',
+    headers: {
+      'X-Date': date,
+      'X-Login': process.env.DLOCAL_X_LOGIN,
+      'X-Trans-Key': process.env.DLOCAL_X_TRANS_KEY,
+      'Content-Type': 'application/json',
+      'X-Version': '2.1',
+      'User-Agent': 'H&G Agency / 1.0',
+      Authorization: `V2-HMAC-SHA256, Signature: ${dLocalSignature(date, requestBody)}`,
+      ...(idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey.slice(0, 42) } : {}),
+    },
+    body: requestBody,
   });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.message || `Mercado Pago request failed (${response.status}).`);
-  return payload;
+  const responsePayload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(responsePayload.message || responsePayload.status_detail || `dLocal request failed (${response.status}).`);
+  return responsePayload;
+}
+
+function validDLocalNotification(req, rawBody) {
+  if (!dLocalConfigured()) return false;
+  const date = String(req.headers['x-date'] || '');
+  const authorization = String(req.headers.authorization || '');
+  const received = authorization.match(/Signature:\s*([a-f0-9]+)/i)?.[1] || '';
+  const expected = dLocalSignature(date, rawBody);
+  if (!/^[a-f0-9]{64}$/i.test(received) || received.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(received, 'hex'), Buffer.from(expected, 'hex'));
+}
+
+function validCpf(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (!/^\d{11}$/.test(digits) || /^(\d)\1{10}$/.test(digits)) return false;
+  const checkDigit = (length) => {
+    let sum = 0;
+    for (let index = 0; index < length; index += 1) sum += Number(digits[index]) * (length + 1 - index);
+    const remainder = (sum * 10) % 11;
+    return remainder === 10 ? 0 : remainder;
+  };
+  return checkDigit(9) === Number(digits[9]) && checkDigit(10) === Number(digits[10]);
 }
 
 function resolveFile(requestPath) {
@@ -226,63 +288,48 @@ async function handleApi(req, res, pathname) {
     return sendJson(res, 201, { ok: true, orderId: order.id });
   }
 
-  if (pathname === '/api/payments/mercadopago/pix' && req.method === 'POST') {
-    if (!mercadoPagoConfigured()) return sendJson(res, 503, { error: 'Mercado Pago is not configured.' });
+  if ((pathname === '/api/payments/dlocal/pix' || pathname === '/api/payments/dlocal/card') && req.method === 'POST') {
+    if (!dLocalConfigured()) return sendJson(res, 503, { error: 'dLocal ainda não está configurado. Adicione as credenciais no Railway.' });
     const body = await readJson(req, 64 * 1024);
     const selectedPlan = resolvePlan(body.plan);
     if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
-    const amount = selectedPlan.amount;
+    const document = cleanText(body.document, 32).replace(/\D/g, '');
+    if (!validCpf(document)) return sendJson(res, 400, { error: 'Informe um CPF brasileiro válido com 11 dígitos.' });
     const orderId = cleanText(body.orderId, 80) || `CHK-${Date.now()}`;
-    const payment = await mercadoPagoRequest('/v1/payments', {
-      method: 'POST',
-      headers: { 'X-Idempotency-Key': orderId },
-      body: JSON.stringify({
-        transaction_amount: Math.round(amount * 100) / 100,
-        description: selectedPlan.name,
-        payment_method_id: 'pix',
-        payer: { email: cleanText(body.email, 160), first_name: cleanText(body.customer || body.name, 80) || 'Cliente' },
-        external_reference: orderId,
-        ...(process.env.MP_WEBHOOK_URL ? { notification_url: process.env.MP_WEBHOOK_URL } : {}),
-      }),
-    });
-    const pix = payment.point_of_interaction?.transaction_data || {};
+    const isCard = pathname.endsWith('/card');
+    const payment = await dLocalRequest('/payments', {
+      amount: selectedPlan.amount,
+      currency: 'BRL',
+      country: 'BR',
+      payment_method_id: isCard ? 'CARD' : 'PQ',
+      payment_method_flow: 'REDIRECT',
+      payer: {
+        name: cleanText(body.customer || body.name, 120) || 'Cliente',
+        email: cleanText(body.email, 160),
+        document,
+        user_reference: orderId,
+      },
+      order_id: orderId,
+      description: selectedPlan.name,
+      notification_url: process.env.DLOCAL_NOTIFICATION_URL || 'https://www.hng1.com/api/webhooks/dlocal',
+      callback_url: process.env.DLOCAL_CALLBACK_URL || 'https://www.hng1.com/?payment=return',
+    }, orderId);
     const orderIndex = data.orders.findIndex((item) => item.id === orderId);
-    if (orderIndex >= 0) { data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'mercadopago', providerPaymentId: String(payment.id), status: payment.status || 'pending' }; saveData(); }
-    return sendJson(res, 201, { ok: true, provider: 'mercadopago', paymentId: payment.id, status: payment.status, qrCode: pix.qr_code || '', qrCodeBase64: pix.qr_code_base64 || '', ticketUrl: pix.ticket_url || '' });
+    if (orderIndex >= 0) {
+      data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'dlocal', providerPaymentId: String(payment.id), status: String(payment.status || 'pending').toLowerCase() };
+      saveData();
+    }
+    return sendJson(res, 201, { ok: true, provider: 'dlocal', paymentId: payment.id, status: payment.status, checkoutUrl: payment.redirect_url || payment.redirect_URL || '' });
   }
 
-  if (pathname === '/api/payments/mercadopago/card' && req.method === 'POST') {
-    if (!mercadoPagoConfigured()) return sendJson(res, 503, { error: 'Mercado Pago is not configured.' });
-    const body = await readJson(req, 64 * 1024);
-    const selectedPlan = resolvePlan(body.plan);
-    if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
-    const amount = selectedPlan.amount;
-    const orderId = cleanText(body.orderId, 80) || `CHK-${Date.now()}`;
-    const preference = await mercadoPagoRequest('/checkout/preferences', {
-      method: 'POST',
-      headers: { 'X-Idempotency-Key': orderId },
-      body: JSON.stringify({
-        items: [{ id: orderId, title: selectedPlan.name, quantity: 1, currency_id: 'BRL', unit_price: amount }],
-        payer: { name: cleanText(body.customer || body.name, 120), email: cleanText(body.email, 160) },
-        external_reference: orderId,
-        ...(process.env.MP_WEBHOOK_URL ? { notification_url: process.env.MP_WEBHOOK_URL } : {}),
-        back_urls: { success: 'https://www.hng1.com/?payment=success', failure: 'https://www.hng1.com/?payment=failure', pending: 'https://www.hng1.com/?payment=pending' },
-        auto_return: 'approved',
-      }),
-    });
-    return sendJson(res, 201, { ok: true, provider: 'mercadopago', preferenceId: preference.id, checkoutUrl: preference.init_point || preference.sandbox_init_point || '' });
-  }
-
-  if (pathname === '/api/webhooks/mercadopago' && (req.method === 'POST' || req.method === 'GET')) {
+  if (pathname === '/api/webhooks/dlocal' && (req.method === 'POST' || req.method === 'GET')) {
     if (req.method === 'GET') return sendJson(res, 200, { ok: true });
-    const body = await readJson(req, 64 * 1024);
-    const paymentId = body.data?.id || body.id;
-    if (paymentId && mercadoPagoConfigured()) {
-      try {
-        const payment = await mercadoPagoRequest(`/v1/payments/${encodeURIComponent(paymentId)}`);
-        const orderIndex = data.orders.findIndex((item) => item.id === payment.external_reference);
-        if (orderIndex >= 0) { data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'mercadopago', status: payment.status || data.orders[orderIndex].status }; saveData(); }
-      } catch (error) { console.warn('Mercado Pago webhook lookup failed:', error.message); }
+    const { body, rawBody } = await readJsonWithRawBody(req, 64 * 1024);
+    if (!validDLocalNotification(req, rawBody)) return sendJson(res, 401, { error: 'Invalid dLocal signature.' });
+    const orderIndex = data.orders.findIndex((item) => item.id === body.order_id);
+    if (orderIndex >= 0) {
+      data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'dlocal', providerPaymentId: String(body.id || ''), status: String(body.status || data.orders[orderIndex].status).toLowerCase() };
+      saveData();
     }
     return sendJson(res, 200, { ok: true });
   }

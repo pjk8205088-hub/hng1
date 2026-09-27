@@ -122,6 +122,8 @@ const I18N = {
     "form.name": "이름 또는 닉네임",
     "form.email": "이메일",
     "form.phone": "전화번호",
+    "form.cpf": "결제자 브라질 CPF",
+    "form.cpfPlaceholder": "예: 000.000.000-00",
     "form.arrival": "예상 입국 시기",
     "form.first": "2026년 상반기",
     "form.second": "2026년 하반기",
@@ -274,6 +276,8 @@ const I18N = {
     "form.name": "Name or nickname",
     "form.email": "E-mail",
     "form.phone": "Phone",
+    "form.cpf": "Brazilian payer CPF",
+    "form.cpfPlaceholder": "000.000.000-00",
     "form.arrival": "Expected arrival",
     "form.first": "First half of 2026",
     "form.second": "Second half of 2026",
@@ -434,6 +438,8 @@ const I18N = {
     "form.name": "Nome ou apelido",
     "form.email": "E-mail",
     "form.phone": "Telefone",
+    "form.cpf": "CPF do pagador",
+    "form.cpfPlaceholder": "000.000.000-00",
     "form.arrival": "Previsão de chegada",
     "form.first": "Primeiro semestre de 2026",
     "form.second": "Segundo semestre de 2026",
@@ -633,29 +639,24 @@ form?.addEventListener('submit', async (event) => {
         product: 'H&G Korea Settlement Program',
       }),
     });
-    if (checkoutRecord.paymentMethod === 'pix' && checkoutResponse.ok) {
-      const paymentResponse = await fetch('/api/payments/mercadopago/pix', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...checkoutRecord, orderId: checkoutRecord.id }) });
-      if (paymentResponse.ok) {
-        const payment = await paymentResponse.json();
-        const panel = document.querySelector('.pix-payment');
-        const qr = document.querySelector('.pix-qr');
-        const copy = document.querySelector('.pix-copy');
-        if (panel && (payment.qrCode || payment.qrCodeBase64)) {
-          panel.hidden = false;
-          if (payment.qrCodeBase64) { qr.src = `data:image/png;base64,${payment.qrCodeBase64}`; qr.hidden = false; }
-          if (copy) copy.value = payment.qrCode || '';
-        }
+    if (checkoutResponse.ok) {
+      const paymentResponse = await fetch(`/api/payments/dlocal/${checkoutRecord.paymentMethod}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, ...checkoutRecord, orderId: checkoutRecord.id }),
+      });
+      const payment = await paymentResponse.json();
+      if (!paymentResponse.ok) throw new Error(payment.error || 'Não foi possível abrir o pagamento.');
+      if (payment.checkoutUrl) {
+        window.location.assign(payment.checkoutUrl);
+        return;
       }
-    }
-    if (checkoutRecord.paymentMethod === 'card' && checkoutResponse.ok) {
-      const paymentResponse = await fetch('/api/payments/mercadopago/card', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...checkoutRecord, orderId: checkoutRecord.id }) });
-      if (paymentResponse.ok) {
-        const payment = await paymentResponse.json();
-        if (payment.checkoutUrl) window.location.assign(payment.checkoutUrl);
-      }
+      throw new Error('O provedor não retornou a página de pagamento.');
     }
   } catch (error) {
-    console.warn('Admin order endpoint unavailable', error);
+    console.warn('Checkout unavailable', error);
+    window.alert(error.message || 'Não foi possível abrir o pagamento. Tente novamente.');
+    return;
   }
 
   if (config.leadEndpoint) {
@@ -683,11 +684,6 @@ form?.addEventListener('submit', async (event) => {
 
   if (form) form.hidden = true;
   if (dialogSuccess) dialogSuccess.hidden = false;
-});
-
-document.querySelector('.pix-copy-button')?.addEventListener('click', async () => {
-  const copy = document.querySelector('.pix-copy');
-  if (copy?.value) await navigator.clipboard.writeText(copy.value);
 });
 
 applyLanguage(language);

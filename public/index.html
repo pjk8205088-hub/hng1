@@ -385,6 +385,10 @@
         <input name="phone" type="tel" required placeholder="+55 11 99999-9999">
       </label>
       <label>
+        <span data-i18n="form.cpf">CPF do pagador</span>
+        <input name="document" inputmode="numeric" autocomplete="off" required pattern="[0-9.\-]{11,14}" placeholder="000.000.000-00" data-i18n-placeholder="form.cpfPlaceholder">
+      </label>
+      <label>
         <span data-i18n="form.arrival">Previsão de chegada</span>
         <select name="arrival">
           <option data-i18n="form.first">Primeiro semestre de 2026</option>
@@ -415,12 +419,6 @@
       <strong data-i18n="form.successTitle">Sua inscrição está pronta.</strong>
       <p data-i18n="form.successBody">Fale com o responsável pelo WhatsApp para receber as instruções de pagamento rapidamente.</p>
       <a class="button button-dark" href="https://wa.me/821055613505" target="_blank" rel="noreferrer" data-i18n="form.successCta">Abrir WhatsApp ↗</a>
-      <div class="pix-payment" hidden>
-        <p class="payment-note">PIX gerado pelo Mercado Pago</p>
-        <img class="pix-qr" alt="QR Code PIX" hidden>
-        <label class="pix-copy-label">Pix Copia e Cola<textarea class="pix-copy" readonly></textarea></label>
-        <button class="button button-ghost pix-copy-button" type="button">Copiar código PIX</button>
-      </div>
     </div>
   </dialog>
 </body>
