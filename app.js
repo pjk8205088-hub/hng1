@@ -76,7 +76,11 @@ document.querySelectorAll('a[href^="#"]').forEach((link) => link.addEventListene
   target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   history.replaceState(null, '', link.getAttribute('href'));
 }));
-document.querySelectorAll('[data-open-application]').forEach((button) => button.addEventListener('click', () => dialog.showModal()));
+document.querySelectorAll('[data-open-application]').forEach((button) => button.addEventListener('click', () => {
+  form.dataset.plan = button.dataset.plan || 'Basic';
+  form.dataset.amount = button.dataset.amount || '2980';
+  dialog.showModal();
+}));
 document.querySelector('[data-close-dialog]')?.addEventListener('click', () => dialog.close());
 dialog?.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
 document.querySelector('[data-config-link="ansaWebsite"]')?.addEventListener('click', (event) => {
@@ -90,6 +94,32 @@ form?.addEventListener('submit', async (event) => {
   const data = Object.fromEntries(new FormData(form).entries());
   if (config.leadEndpoint) {
     try { await fetch(config.leadEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...data, language, product: 'H&G Korea Settlement Program' }) }); } catch (error) { console.warn('Lead endpoint unavailable', error); }
+  }
+  const apiBase = String(config.dLocalApiBase || '').replace(/\/$/, '');
+  if (apiBase && config.dLocalCreatorId) {
+    try {
+      const response = await fetch(`${apiBase}/api/payments/dlocal/checkout`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorId: config.dLocalCreatorId, amount: Number(form.dataset.amount || 2980), country: 'BR', currency: 'BRL', purchaserName: data.name, purchaserEmail: data.email, purchaserPhone: data.phone, description: `${form.dataset.plan || 'Basic'} - H&G Korea settlement program` })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || result.code || 'DLOCAL_CHECKOUT_FAILED');
+      const payment = result.payment || {};
+      const paymentUrl = payment.checkout_url || payment.redirect_url || payment.url;
+      if (paymentUrl) window.location.assign(paymentUrl);
+      else {
+        const message = `H&G / ${form.dataset.plan || 'Basic'} / ${data.name} / ${result.orderId}`;
+        const successLink = document.querySelector('.dialog-success a');
+        if (successLink) successLink.href = `https://wa.me/821055613505?text=${encodeURIComponent(message)}`;
+        form.hidden = true;
+        document.querySelector('.dialog-success').hidden = false;
+      }
+      return;
+    } catch (error) {
+      console.warn('dLocal checkout unavailable', error);
+      alert(language === 'pt' ? 'O pagamento online ainda não está disponível. Fale conosco pelo WhatsApp.' : language === 'en' ? 'Online payment is not available yet. Please contact us on WhatsApp.' : '온라인 결제가 아직 준비되지 않았습니다. WhatsApp으로 문의해 주세요.');
+      return;
+    }
   }
   const whatsapp = document.querySelector('.dialog-success a');
   const message = `H&G application / ${data.name} / ${data.email} / ${data.phone} / ${data.arrival}`;

@@ -5,6 +5,8 @@ window.HNG_CONFIG = {
   ansaWebsite: "",
   // Set an API Gateway / Lambda, Formspree, or other approved lead endpoint.
   leadEndpoint: "",
+  dLocalApiBase: "https://influencer-korea-production.up.railway.app",
+  dLocalCreatorId: "hong-gil-sun",
   // Payment provider links can be added here when the PIX/card accounts are ready.
   pixUrl: "",
   cardUrl: ""
