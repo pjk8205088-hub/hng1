@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>H&G 관리자</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@4/dist/css/adminlte.min.css" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+  <div id="login-view" class="login-wrap">
+    <div class="login-card card card-outline card-primary">
+      <div class="card-header text-center"><a href="/" class="h1"><b>H&amp;G</b> Admin</a></div>
+      <div class="card-body">
+        <p class="login-box-msg">관리자 계정으로 로그인하세요</p>
+        <form id="login-form">
+          <div class="input-group mb-3"><input id="login-email" type="email" class="form-control" placeholder="이메일" required><div class="input-group-text"><span class="bi bi-envelope"></span></div></div>
+          <div class="input-group mb-3"><input id="login-password" type="password" class="form-control" placeholder="비밀번호" required><div class="input-group-text"><span class="bi bi-lock"></span></div></div>
+          <button class="btn btn-primary w-100" type="submit">로그인</button>
+          <div id="login-error" class="text-danger small mt-3"></div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="app-view" class="app-shell d-none">
+    <nav class="app-header navbar navbar-expand bg-body">
+      <div class="container-fluid"><button id="menu-toggle" class="btn btn-link"><span class="bi bi-list"></span></button><span class="navbar-brand mb-0 h1">H&amp;G Korea Admin</span><div class="ms-auto"><a href="/" class="btn btn-sm btn-outline-secondary me-2">사이트 보기</a><button id="logout" class="btn btn-sm btn-outline-danger">로그아웃</button></div></div>
+    </nav>
+    <aside class="app-sidebar sidebar-bg-dark shadow" data-bs-theme="dark"><div class="sidebar-brand"><a href="/admin.html" class="brand-link"><span class="brand-text fw-light">H&amp;G 관리자</span></a></div><div class="sidebar-wrapper"><nav><ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="menu"><li class="nav-item"><a href="#overview" class="nav-link active"><span class="nav-icon bi bi-speedometer2"></span><p>대시보드</p></a></li><li class="nav-item"><a href="#payments" class="nav-link"><span class="nav-icon bi bi-credit-card"></span><p>결제 관리</p></a></li><li class="nav-item"><a href="#members" class="nav-link"><span class="nav-icon bi bi-people"></span><p>회원 관리</p></a></li><li class="nav-item"><a href="#partners" class="nav-link"><span class="nav-icon bi bi-ticket-perforated"></span><p>추천인 코드</p></a></li><li class="nav-item"><a href="#products" class="nav-link"><span class="nav-icon bi bi-box-seam"></span><p>상품 관리</p></a></li><li class="nav-item"><a href="#pg" class="nav-link"><span class="nav-icon bi bi-plug"></span><p>PG 연결 상태</p></a></li></ul></nav></div></aside>
+    <main class="app-main"><div class="app-content-header"><div class="container-fluid"><h3 id="page-title">대시보드</h3></div></div><div class="app-content"><div class="container-fluid">
+      <section id="overview" class="admin-section"><div class="row g-3"><div class="col-md-3"><div class="info-box text-bg-primary"><span class="info-box-icon"><i class="bi bi-cash-stack"></i></span><div class="info-box-content"><span class="info-box-text">결제 완료</span><span id="stat-payments" class="info-box-number">-</span></div></div></div><div class="col-md-3"><div class="info-box text-bg-success"><span class="info-box-icon"><i class="bi bi-bar-chart"></i></span><div class="info-box-content"><span class="info-box-text">누적 매출</span><span id="stat-revenue" class="info-box-number">-</span></div></div></div><div class="col-md-3"><div class="info-box text-bg-info"><span class="info-box-icon"><i class="bi bi-person-check"></i></span><div class="info-box-content"><span class="info-box-text">회원 수</span><span id="stat-users" class="info-box-number">-</span></div></div></div><div class="col-md-3"><div class="info-box text-bg-warning"><span class="info-box-icon"><i class="bi bi-shield-check"></i></span><div class="info-box-content"><span class="info-box-text">dLocal</span><span id="stat-pg" class="info-box-number">확인 중</span></div></div></div></div><div class="card mt-4"><div class="card-header"><h3 class="card-title">최근 결제</h3><button class="btn btn-sm btn-outline-primary float-end" data-refresh>새로고침</button></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>주문번호</th><th>고객</th><th>금액</th><th>상태</th><th>일시</th></tr></thead><tbody id="recent-payments"></tbody></table></div></div></div></section>
+      <section id="payments" class="admin-section d-none"><div class="card"><div class="card-header"><h3 class="card-title">결제 관리</h3><button class="btn btn-sm btn-success float-end" id="export-payments">CSV 다운로드</button></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-striped mb-0"><thead><tr><th>주문번호</th><th>고객</th><th>이메일</th><th>금액</th><th>PG</th><th>상태</th><th>결제일</th></tr></thead><tbody id="payments-table"></tbody></table></div></div></div></section>
+      <section id="members" class="admin-section d-none"><div class="card"><div class="card-header"><h3 class="card-title">회원 관리</h3></div><div class="card-body p-0"><div class="table-responsive"><table class="table table-striped mb-0"><thead><tr><th>이름</th><th>이메일</th><th>역할</th><th>가입일</th></tr></thead><tbody id="members-table"></tbody></table></div></div></div></section>
+      <section id="partners" class="admin-section d-none"><div class="card"><div class="card-header"><h3 class="card-title">추천인 코드</h3></div><div class="card-body"><div class="alert alert-light border mb-0">결제 시 입력된 추천인 코드가 API 결제 레코드에 저장되면 이 화면에서 코드별 사용 건수와 매출을 집계할 수 있습니다. 현재 결제 데이터의 referralCode 필드를 기준으로 표시합니다.</div><div id="partners-list" class="row g-3 mt-1"></div></div></div></section>
+      <section id="products" class="admin-section d-none"><div class="card"><div class="card-header"><h3 class="card-title">H&amp;G 상품 관리</h3><span class="badge text-bg-light float-end">사이트 상품 기준</span></div><div class="card-body"><div id="products-list" class="row g-3"></div></div></div></section>
+      <section id="pg" class="admin-section d-none"><div class="card"><div class="card-header"><h3 class="card-title">PG 연결 상태</h3></div><div class="card-body"><div id="pg-status" class="alert alert-secondary">확인 중...</div><p class="text-muted mb-0">dLocal sandbox/production 상태와 결제 API 응답을 확인합니다. 보안 키는 화면에 표시하지 않습니다.</p></div></div></section>
+    </div></div></main>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/admin-lte@4/dist/js/adminlte.min.js"></script><script src="admin.js"></script>
+</body></html>
