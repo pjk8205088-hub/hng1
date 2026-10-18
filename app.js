@@ -53,6 +53,11 @@ let language = localStorage.getItem('hng-language') || 'ko';
 const config = window.HNG_CONFIG || {};
 const dialog = document.querySelector('#application-dialog');
 const form = document.querySelector('#application-form');
+if (form && !form.querySelector('[name="document"]')) {
+  const cpf = document.createElement('label');
+  cpf.innerHTML = '<span>CPF</span><input name="document" inputmode="numeric" required pattern="[0-9.\\-]{11,14}" placeholder="000.000.000-00">';
+  form.querySelector('[name="phone"]')?.closest('label')?.after(cpf);
+}
 
 function applyLanguage(next) {
   language = I18N[next] ? next : 'ko';
@@ -100,7 +105,7 @@ form?.addEventListener('submit', async (event) => {
     try {
       const response = await fetch(`${apiBase}/api/payments/dlocal/checkout`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creatorId: config.dLocalCreatorId, amount: Number(form.dataset.amount || 2980), country: 'BR', currency: 'BRL', purchaserName: data.name, purchaserEmail: data.email, purchaserPhone: data.phone, description: `${form.dataset.plan || 'Basic'} - H&G Korea settlement program` })
+        body: JSON.stringify({ creatorId: config.dLocalCreatorId, amount: Number(form.dataset.amount || 2980), country: 'BR', currency: 'BRL', paymentMethod: data.paymentMethod || 'pix', document: String(data.document || '').replace(/\\D/g, ''), purchaserName: data.name, purchaserEmail: data.email, purchaserPhone: data.phone, description: `${form.dataset.plan || 'Basic'} - H&G Korea settlement program` })
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || result.code || 'DLOCAL_CHECKOUT_FAILED');
