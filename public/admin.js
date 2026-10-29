@@ -1,6 +1,34 @@
 const STORAGE_KEY = 'hng-admin-state-v1';
 const CHECKOUT_STORAGE_KEY = 'hng-checkout-submissions-v1';
 
+// Admin-only Korean display for existing PT-BR catalog copy. Saving an
+// unchanged translated field restores the original customer-facing text.
+const PRODUCT_COPY_KO = new Map([
+  ['Pacote Turismo Coreia', '한국 관광 상품'],
+  ['Pacote Estudante Internacional', '한국 유학생 상품'],
+  ['Pacote de entrada para viajantes que querem experiência coreana com suporte comercial e atendimento em PT-BR.', '한국 여행 경험을 원하는 고객을 위한 입문 상품입니다. 구매 상담과 브라질 포르투갈어 안내를 제공합니다.'],
+  ['Suporte de compra e contratação', '구매 및 계약 지원'],
+  ['Orientação em português do Brasil', '브라질 포르투갈어 안내'],
+  ['Material comercial simplificado', '간결한 상품 안내 자료'],
+  ['Contato direto por WhatsApp', 'WhatsApp 직접 상담'],
+  ['Finalizar inscrição', '신청 완료'],
+  ['Pacote com foco em estudantes estrangeiros, adaptado para chegada, vida local e fluxo de matrícula.', '외국인 유학생의 입국, 현지 생활 및 등록 절차를 지원하는 상품입니다.'],
+  ['Apoio de chegada e instalação', '입국 및 정착 지원'],
+  ['Organização do fluxo de matrícula', '등록 절차 안내'],
+  ['Ajustes de comunicação e suporte local', '현지 소통 및 지원'],
+  ['Integração com a jornada de estudos', '학업 일정 연계'],
+  ['Iniciar matrícula', '등록 시작'],
+]);
+const PRODUCT_COPY_PT = new Map([...PRODUCT_COPY_KO].map(([pt, ko]) => [ko, pt]));
+const productCopyForAdmin = (value) => PRODUCT_COPY_KO.get(value) || value || '';
+const productCopyForSite = (value) => PRODUCT_COPY_PT.get(value) || value || '';
+const PARTNER_NOTE_KO = new Map([
+  ['Canal principal com operação e suporte no Brasil.', '브라질 운영 및 지원을 담당하는 주요 채널'],
+  ['Campanha para criadores e comunidades de viagem.', '크리에이터와 여행 커뮤니티 대상 캠페인'],
+  ['Campanha antiga em pausa temporária.', '일시 중단된 이전 캠페인'],
+]);
+const PARTNER_NOTE_PT = new Map([...PARTNER_NOTE_KO].map(([pt, ko]) => [ko, pt]));
+
 const currency = new Intl.NumberFormat('pt-BR', {
   style: 'currency',
   currency: 'BRL',
@@ -277,7 +305,7 @@ function formatCurrency(value) {
 }
 
 function paymentLabel(method) {
-  return method === 'pix' ? 'PIX' : 'Cartão';
+  return method === 'pix' ? 'PIX' : '신용카드';
 }
 
 function paymentBadgeClass(method) {
@@ -287,11 +315,11 @@ function paymentBadgeClass(method) {
 function statusLabel(status) {
   switch (status) {
     case 'paid':
-      return 'Pago';
+      return '결제 완료';
     case 'refunded':
-      return 'Reembolsado';
+      return '환불 완료';
     default:
-      return 'Pendente';
+      return '결제 대기';
   }
 }
 
@@ -307,9 +335,9 @@ function statusBadgeClass(status) {
 }
 
 function availabilityLabel(value) {
-  if (value === 'few') return 'Poucas vagas';
-  if (value === 'soldout') return 'Esgotado';
-  return 'Disponível';
+  if (value === 'few') return '잔여 수량 적음';
+  if (value === 'soldout') return '품절';
+  return '판매 가능';
 }
 
 function availabilityBadgeClass(value) {
@@ -341,7 +369,7 @@ function toast(message, type = 'primary') {
     <div id="${id}" class="toast align-items-center ${colors[type] || colors.primary} border-0" role="alert" aria-live="assertive" aria-atomic="true">
       <div class="d-flex">
         <div class="toast-body fw-semibold">${message}</div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="닫기"></button>
       </div>
     </div>
   `);
@@ -390,7 +418,7 @@ function renderMetrics() {
 function renderOrders() {
   const rows = getFilteredOrders();
   if (!rows.length) {
-    el.ordersBody.innerHTML = '<tr><td colspan="11" class="text-center text-secondary py-4">Nenhum pedido encontrado.</td></tr>';
+    el.ordersBody.innerHTML = '<tr><td colspan="11" class="text-center text-secondary py-4">주문 내역이 없습니다.</td></tr>';
     return;
   }
 
@@ -400,15 +428,15 @@ function renderOrders() {
       <td>${order.customer}</td>
       <td><a href="https://wa.me/${sanitizeDigits(order.whatsapp)}" target="_blank" rel="noreferrer">${order.whatsapp}</a></td>
       <td><a href="mailto:${order.email}">${order.email}</a></td>
-      <td>${order.plan}</td>
+      <td>${productCopyForAdmin(order.plan)}</td>
       <td><span class="badge badge-soft ${paymentBadgeClass(order.paymentMethod)}">${paymentLabel(order.paymentMethod)}</span></td>
       <td><span class="text-uppercase fw-semibold">${order.referralCode}</span></td>
       <td>${order.paymentDate}</td>
       <td class="fw-bold">${formatCurrency(order.amount)}</td>
       <td><span class="badge badge-soft ${statusBadgeClass(order.status)}">${statusLabel(order.status)}</span></td>
       <td class="text-end text-nowrap">
-        <button class="btn btn-sm btn-outline-primary" data-action="view-order" data-id="${order.id}">Detalhes</button>
-        <button class="btn btn-sm btn-outline-danger ms-1" data-action="refund-order" data-id="${order.id}" ${order.status === 'refunded' ? 'disabled' : ''}>Reembolsar</button>
+        <button class="btn btn-sm btn-outline-primary" data-action="view-order" data-id="${order.id}">상세 보기</button>
+        <button class="btn btn-sm btn-outline-danger ms-1" data-action="refund-order" data-id="${order.id}" ${order.status === 'refunded' ? 'disabled' : ''}>환불 처리</button>
       </td>
     </tr>
   `).join('');
@@ -424,7 +452,7 @@ function renderPartners() {
     .sort((a, b) => b.totalRevenue - a.totalRevenue);
 
   if (!rows.length) {
-    el.partnersBody.innerHTML = '<tr><td colspan="5" class="text-center text-secondary py-4">Nenhum código cadastrado.</td></tr>';
+    el.partnersBody.innerHTML = '<tr><td colspan="5" class="text-center text-secondary py-4">등록된 추천인 코드가 없습니다.</td></tr>';
     return;
   }
 
@@ -435,15 +463,15 @@ function renderPartners() {
       <td class="text-end">${code.totalOrders}</td>
       <td class="text-end fw-semibold">${formatCurrency(code.totalRevenue)}</td>
       <td class="text-end text-nowrap">
-        <button class="btn btn-sm btn-outline-success" data-action="code-detail" data-code="${code.code}">Clientes</button>
-        <button class="btn btn-sm btn-outline-secondary ms-1" data-action="code-edit" data-code="${code.code}">Editar</button>
+        <button class="btn btn-sm btn-outline-success" data-action="code-detail" data-code="${code.code}">고객 목록</button>
+        <button class="btn btn-sm btn-outline-secondary ms-1" data-action="code-edit" data-code="${code.code}">수정</button>
       </td>
     </tr>
   `).join('');
 }
 
 function memberStatusLabel(status) {
-  return status === 'inactive' ? 'Inativo' : 'Ativo';
+  return status === 'inactive' ? '비활성' : '활성';
 }
 
 function memberStatusClass(status) {
@@ -463,7 +491,7 @@ function renderMembers() {
   if (!el.membersBody) return;
   const members = filteredMembers();
   if (!members.length) {
-    el.membersBody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary py-4">Nenhum membro encontrado.</td></tr>';
+    el.membersBody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary py-4">회원이 없습니다.</td></tr>';
     return;
   }
   el.membersBody.innerHTML = members.map((member) => `
@@ -471,13 +499,13 @@ function renderMembers() {
       <td class="fw-semibold">${member.name}</td>
       <td><a href="https://wa.me/${sanitizeDigits(member.whatsapp)}" target="_blank" rel="noreferrer">${member.whatsapp}</a></td>
       <td><a href="mailto:${member.email}">${member.email}</a></td>
-      <td>${member.plan || '—'}</td>
+      <td>${productCopyForAdmin(member.plan) || '—'}</td>
       <td><span class="text-uppercase fw-semibold">${member.referralCode || '—'}</span></td>
       <td>${member.joinedAt || '—'}</td>
       <td><span class="badge badge-soft ${memberStatusClass(member.status)}">${memberStatusLabel(member.status)}</span></td>
       <td class="text-end text-nowrap">
-        <button class="btn btn-sm btn-outline-secondary" data-action="member-edit" data-id="${member.id}">Editar</button>
-        <button class="btn btn-sm btn-outline-danger ms-1" data-action="member-delete" data-id="${member.id}">Excluir</button>
+        <button class="btn btn-sm btn-outline-secondary" data-action="member-edit" data-id="${member.id}">수정</button>
+        <button class="btn btn-sm btn-outline-danger ms-1" data-action="member-delete" data-id="${member.id}">삭제</button>
       </td>
     </tr>
   `).join('');
@@ -485,13 +513,13 @@ function renderMembers() {
 
 function fillProductForm(form, product) {
   if (!form || !product) return;
-  form.elements.title.value = product.title || '';
+  form.elements.title.value = productCopyForAdmin(product.title);
   form.elements.price.value = Number(product.price || 0).toFixed(2);
   form.elements.image.value = product.image || '';
-  form.elements.description.value = product.description || '';
-  form.elements.includes.value = (product.includes || []).join('\n');
+  form.elements.description.value = productCopyForAdmin(product.description);
+  form.elements.includes.value = (product.includes || []).map(productCopyForAdmin).join('\n');
   form.elements.availability.value = product.availability || 'available';
-  form.elements.cta.value = product.cta || '';
+  form.elements.cta.value = productCopyForAdmin(product.cta);
 }
 
 function updateProductPreview(type) {
@@ -499,7 +527,7 @@ function updateProductPreview(type) {
   const preview = type === 'tourism' ? el.tourismPreview : el.studentPreview;
   if (preview && product) {
     preview.src = product.image || '';
-    preview.alt = product.title || 'Prévia do produto';
+    preview.alt = product.title || '상품 미리보기';
   }
 }
 
@@ -512,7 +540,7 @@ function renderProducts() {
 
 function renderActivity() {
   if (!state.activity.length) {
-    el.activity.innerHTML = '<div class="text-secondary small">Sem atividade recente.</div>';
+    el.activity.innerHTML = '<div class="text-secondary small">최근 활동이 없습니다.</div>';
     return;
   }
 
@@ -565,7 +593,7 @@ function exportCsv() {
   ];
   const csv = rows.map((row) => row.map(escapeCsv).join(';')).join('\n');
   downloadFile('hng-orders.csv', csv, 'text/csv;charset=utf-8;');
-  toast('CSV exportado com os pedidos filtrados.');
+  toast('필터링한 주문 내역을 CSV로 다운로드했습니다.');
 }
 
 function escapeCsv(value) {
@@ -597,7 +625,7 @@ function openOrderDetails(orderId) {
   document.getElementById('orderModalBody').innerHTML = `
     <div class="col-md-6">
       <div class="p-3 bg-body-tertiary rounded-4 h-100">
-        <div class="text-secondary small mb-1">Cliente</div>
+        <div class="text-secondary small mb-1">고객</div>
         <div class="fw-semibold fs-5">${order.customer}</div>
         <div class="small text-secondary mt-2">${order.email}</div>
         <div class="small text-secondary">${order.whatsapp}</div>
@@ -605,28 +633,28 @@ function openOrderDetails(orderId) {
     </div>
     <div class="col-md-6">
       <div class="p-3 bg-body-tertiary rounded-4 h-100">
-        <div class="text-secondary small mb-1">Pedido</div>
+        <div class="text-secondary small mb-1">주문번호</div>
         <div class="fw-semibold">${order.id}</div>
-        <div class="small text-secondary mt-2">Plano: ${order.plan}</div>
-        <div class="small text-secondary">Código: ${order.referralCode}</div>
-        <div class="small text-secondary">Pagamento: ${paymentLabel(order.paymentMethod)} • ${order.paymentDate}</div>
+        <div class="small text-secondary mt-2">플랜: ${productCopyForAdmin(order.plan)}</div>
+        <div class="small text-secondary">코드: ${order.referralCode}</div>
+        <div class="small text-secondary">결제: ${paymentLabel(order.paymentMethod)} • ${order.paymentDate}</div>
       </div>
     </div>
     <div class="col-md-4">
       <div class="p-3 bg-white border rounded-4 h-100">
-        <div class="text-secondary small">Valor</div>
+        <div class="text-secondary small">금액</div>
         <div class="fs-4 fw-bold">${formatCurrency(order.amount)}</div>
       </div>
     </div>
     <div class="col-md-4">
       <div class="p-3 bg-white border rounded-4 h-100">
-        <div class="text-secondary small">Status</div>
+        <div class="text-secondary small">상태</div>
         <div class="mt-2"><span class="badge badge-soft ${statusBadgeClass(order.status)}">${statusLabel(order.status)}</span></div>
       </div>
     </div>
     <div class="col-md-4">
       <div class="p-3 bg-white border rounded-4 h-100">
-        <div class="text-secondary small">Meio</div>
+        <div class="text-secondary small">결제수단</div>
         <div class="mt-2"><span class="badge badge-soft ${paymentBadgeClass(order.paymentMethod)}">${paymentLabel(order.paymentMethod)}</span></div>
       </div>
     </div>
@@ -637,13 +665,13 @@ function openOrderDetails(orderId) {
 function refundOrder(orderId) {
   const order = state.orders.find((item) => item.id === orderId);
   if (!order || order.status === 'refunded') return;
-  if (!confirm(`Reembolsar ${order.id} (${order.customer})?`)) return;
+  if (!confirm(`주문 ${order.id} (${order.customer})을 환불 처리하시겠습니까?`)) return;
   order.status = 'refunded';
   saveState();
   renderAll();
   modalRefs.order.hide();
-  toast(`Pedido ${order.id} marcado como reembolsado.`, 'danger');
-  pushActivity('Reembolso realizado', `${order.customer} teve o pedido ${order.id} reembolsado com sucesso.`, 'agora', 'bi bi-arrow-counterclockwise');
+  toast(`주문 ${order.id}을 환불 완료로 표시했습니다.`, 'danger');
+  pushActivity('환불 처리', `${order.customer}의 주문 ${order.id}을 환불 완료로 표시했습니다.`, '지금', 'bi bi-arrow-counterclockwise');
 }
 
 function openPartnerForm(code = null) {
@@ -652,14 +680,14 @@ function openPartnerForm(code = null) {
   if (code) {
     const entry = state.referralCodes.find((item) => item.code === code);
     if (!entry) return;
-    el.partnerModalTitle.textContent = `Editar código ${entry.code}`;
+    el.partnerModalTitle.textContent = `추천인 코드 ${entry.code} 수정`;
     form.elements.originalCode.value = entry.code;
     form.elements.code.value = entry.code;
     form.elements.partner.value = entry.partner;
     form.elements.active.value = String(Boolean(entry.active));
-    form.elements.note.value = entry.note || '';
+    form.elements.note.value = PARTNER_NOTE_KO.get(entry.note) || entry.note || '';
   } else {
-    el.partnerModalTitle.textContent = 'Novo código de parceiro';
+    el.partnerModalTitle.textContent = '새 추천인 코드';
     form.elements.originalCode.value = '';
     form.elements.active.value = 'true';
   }
@@ -673,13 +701,14 @@ function savePartnerCode(event) {
   const code = form.elements.code.value.trim().toUpperCase();
   const partner = form.elements.partner.value.trim();
   const active = form.elements.active.value === 'true';
-  const note = form.elements.note.value.trim();
+  const noteInput = form.elements.note.value.trim();
+  const note = PARTNER_NOTE_PT.get(noteInput) || noteInput;
 
   if (!code || !partner) return;
 
   const duplicate = state.referralCodes.find((item) => item.code.toUpperCase() === code && item.code.toUpperCase() !== originalCode.toUpperCase());
   if (duplicate) {
-    toast(`Já existe um parceiro com o código ${code}.`, 'danger');
+    toast(`추천인 코드 ${code}가 이미 등록되어 있습니다.`, 'danger');
     return;
   }
 
@@ -695,8 +724,8 @@ function savePartnerCode(event) {
   saveState();
   renderPartners();
   modalRefs.partner.hide();
-  toast(`Código ${code} salvo com sucesso.`);
-  pushActivity('Código de parceiro salvo', `O código ${code} foi criado ou atualizado.`, 'agora', 'bi bi-people');
+  toast(`추천인 코드 ${code}를 저장했습니다.`);
+  pushActivity('추천인 코드 저장', `코드 ${code}가 생성 또는 수정되었습니다.`, '지금', 'bi bi-people');
 }
 
 function openMemberForm(memberId = null) {
@@ -706,16 +735,16 @@ function openMemberForm(memberId = null) {
   if (memberId) {
     const member = state.members.find((item) => item.id === memberId);
     if (!member) return;
-    el.memberModalTitle.textContent = `Editar membro ${member.name}`;
+    el.memberModalTitle.textContent = `${member.name} 회원 수정`;
     form.elements.originalId.value = member.id;
     form.elements.name.value = member.name || '';
     form.elements.whatsapp.value = member.whatsapp || '';
     form.elements.email.value = member.email || '';
-    form.elements.plan.value = member.plan || '';
+    form.elements.plan.value = productCopyForAdmin(member.plan);
     form.elements.referralCode.value = member.referralCode || '';
     form.elements.status.value = member.status || 'active';
   } else {
-    el.memberModalTitle.textContent = 'Novo membro';
+    el.memberModalTitle.textContent = '새 회원';
     form.elements.status.value = 'active';
   }
   modalRefs.member.show();
@@ -730,15 +759,15 @@ function saveMember(event) {
     name: form.elements.name.value.trim(),
     whatsapp: form.elements.whatsapp.value.trim(),
     email: form.elements.email.value.trim(),
-    plan: form.elements.plan.value.trim() || '—',
+    plan: productCopyForSite(form.elements.plan.value.trim()) || '—',
     referralCode: form.elements.referralCode.value.trim().toUpperCase() || '—',
-    joinedAt: originalId ? (state.members.find((item) => item.id === originalId)?.joinedAt || '—') : new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
+    joinedAt: originalId ? (state.members.find((item) => item.id === originalId)?.joinedAt || '—') : new Date().toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' }),
     status: form.elements.status.value === 'inactive' ? 'inactive' : 'active',
   };
   if (!member.name || !member.email || !member.whatsapp) return;
   const duplicate = state.members.find((item) => item.email.toLowerCase() === member.email.toLowerCase() && item.id !== originalId);
   if (duplicate) {
-    toast('Já existe um membro com este e-mail.', 'danger');
+    toast('이 이메일로 등록된 회원이 이미 있습니다.', 'danger');
     return;
   }
   const index = state.members.findIndex((item) => item.id === originalId);
@@ -747,17 +776,17 @@ function saveMember(event) {
   saveState();
   renderMembers();
   modalRefs.member.hide();
-  toast(`Membro ${member.name} salvo com sucesso.`);
-  pushActivity('Membro atualizado', `${member.name} foi incluído ou atualizado no cadastro.`, 'agora', 'bi bi-person-vcard');
+  toast(`${member.name} 회원을 저장했습니다.`);
+  pushActivity('회원 정보 수정', `${member.name} 회원 정보가 등록 또는 수정되었습니다.`, '지금', 'bi bi-person-vcard');
 }
 
 function deleteMember(memberId) {
   const member = state.members.find((item) => item.id === memberId);
-  if (!member || !confirm(`Excluir o cadastro de ${member.name}?`)) return;
+  if (!member || !confirm(`${member.name} 회원을 삭제하시겠습니까?`)) return;
   state.members = state.members.filter((item) => item.id !== memberId);
   saveState();
   renderMembers();
-  toast(`Membro ${member.name} excluído.`, 'danger');
+  toast(`${member.name} 회원을 삭제했습니다.`, 'danger');
 }
 
 function openCodeDetails(code) {
@@ -766,20 +795,20 @@ function openCodeDetails(code) {
   const orders = state.orders.filter((order) => order.referralCode?.toUpperCase() === code.toUpperCase());
   const totalRevenue = orders.reduce((sum, order) => sum + (order.status === 'refunded' ? 0 : Number(order.amount || 0)), 0);
 
-  el.codeDetailTitle.textContent = `Código ${entry.code} • ${entry.partner}`;
+  el.codeDetailTitle.textContent = `추천인 코드 ${entry.code} · ${entry.partner}`;
   el.codeDetailSummary.innerHTML = `
-    <div class="col-md-4"><div class="p-3 bg-body-tertiary rounded-4 h-100"><div class="text-secondary small">Uso total</div><div class="fs-4 fw-bold">${orders.length}</div></div></div>
-    <div class="col-md-4"><div class="p-3 bg-body-tertiary rounded-4 h-100"><div class="text-secondary small">Receita líquida</div><div class="fs-4 fw-bold">${formatCurrency(totalRevenue)}</div></div></div>
-    <div class="col-md-4"><div class="p-3 bg-body-tertiary rounded-4 h-100"><div class="text-secondary small">Status</div><div class="mt-2"><span class="badge badge-soft ${entry.active ? 'badge-paid' : 'badge-pending'}">${entry.active ? 'Ativo' : 'Inativo'}</span></div></div></div>
+    <div class="col-md-4"><div class="p-3 bg-body-tertiary rounded-4 h-100"><div class="text-secondary small">총 사용 건수</div><div class="fs-4 fw-bold">${orders.length}</div></div></div>
+    <div class="col-md-4"><div class="p-3 bg-body-tertiary rounded-4 h-100"><div class="text-secondary small">순매출</div><div class="fs-4 fw-bold">${formatCurrency(totalRevenue)}</div></div></div>
+    <div class="col-md-4"><div class="p-3 bg-body-tertiary rounded-4 h-100"><div class="text-secondary small">상태</div><div class="mt-2"><span class="badge badge-soft ${entry.active ? 'badge-paid' : 'badge-pending'}">${entry.active ? '활성' : '비활성'}</span></div></div></div>
   `;
 
   if (!orders.length) {
-    el.codeDetailBody.innerHTML = '<tr><td colspan="5" class="text-center text-secondary py-4">Nenhum cliente vinculado a este código.</td></tr>';
+    el.codeDetailBody.innerHTML = '<tr><td colspan="5" class="text-center text-secondary py-4">이 코드와 연결된 고객이 없습니다.</td></tr>';
   } else {
     el.codeDetailBody.innerHTML = orders.map((order) => `
       <tr>
         <td>${order.customer}</td>
-        <td>${order.plan}</td>
+        <td>${productCopyForAdmin(order.plan)}</td>
         <td>${paymentLabel(order.paymentMethod)}</td>
         <td>${order.paymentDate}</td>
         <td class="text-end fw-semibold">${formatCurrency(order.amount)}</td>
@@ -795,19 +824,19 @@ function bindProductForms() {
       event.preventDefault();
       const type = form.dataset.productForm;
       const next = {
-        title: form.elements.title.value.trim(),
+        title: productCopyForSite(form.elements.title.value.trim()),
         price: Number(form.elements.price.value || 0),
         image: form.elements.image.value.trim(),
-        description: form.elements.description.value.trim(),
-        includes: form.elements.includes.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean),
+        description: productCopyForSite(form.elements.description.value.trim()),
+        includes: form.elements.includes.value.split(/\r?\n/).map((line) => productCopyForSite(line.trim())).filter(Boolean),
         availability: form.elements.availability.value,
-        cta: form.elements.cta.value.trim() || (type === 'tourism' ? 'Finalizar inscrição' : 'Iniciar matrícula'),
+        cta: productCopyForSite(form.elements.cta.value.trim()) || (type === 'tourism' ? 'Finalizar inscrição' : 'Iniciar matrícula'),
       };
       state.products[type] = next;
       saveState();
       updateProductPreview(type);
-      toast(`Produto ${next.title} salvo com sucesso.`);
-      pushActivity('Produto atualizado', `${next.title} recebeu uma nova imagem, preço ou texto de descrição.`, 'agora', 'bi bi-box-seam');
+      toast(`${next.title} 상품을 저장했습니다.`);
+      pushActivity('상품 정보 수정', `${next.title} 상품의 이미지, 가격 또는 설명을 수정했습니다.`, '지금', 'bi bi-box-seam');
     };
   });
 }
@@ -820,11 +849,11 @@ function bindEvents() {
 
   document.getElementById('refreshDataBtn').addEventListener('click', () => {
     renderAll();
-    toast('Dados atualizados.');
+    toast('데이터를 새로고침했습니다.');
   });
 
   document.getElementById('resetDemoBtn').addEventListener('click', () => {
-    if (!confirm('Restaurar os dados de demonstração?')) return;
+    if (!confirm('데모 데이터를 초기화하시겠습니까?')) return;
     localStorage.removeItem(STORAGE_KEY);
     window.location.reload();
   });
@@ -880,8 +909,8 @@ function bindEvents() {
     state.checkout.cardUrl = form.elements.cardUrl.value.trim();
     state.checkout.whatsappUrl = form.elements.whatsappUrl.value.trim();
     saveState();
-    toast('Configurações de checkout salvas.');
-    pushActivity('Checkout atualizado', 'Links PIX, cartão e WhatsApp foram atualizados.', 'agora', 'bi bi-credit-card');
+    toast('결제 설정을 저장했습니다.');
+    pushActivity('결제 설정 수정', 'PIX, 카드 및 WhatsApp 링크를 수정했습니다.', '지금', 'bi bi-credit-card');
   });
 
   document.querySelectorAll('.product-form input[name="image"]').forEach((input) => {
@@ -902,7 +931,7 @@ function updateProductPreview(type) {
   const preview = type === 'tourism' ? el.tourismPreview : el.studentPreview;
   if (preview && product) {
     preview.src = product.image || '';
-    preview.alt = product.title || 'Prévia do produto';
+    preview.alt = product.title || '상품 미리보기';
   }
 }
 
@@ -927,7 +956,7 @@ async function initializeAdmin() {
 
   const loadRemoteState = async () => {
     const response = await fetch('/api/admin/state', { credentials: 'same-origin' });
-    if (!response.ok) throw new Error('Unable to load admin data.');
+    if (!response.ok) throw new Error('관리자 데이터를 불러올 수 없습니다.');
     const remote = await response.json();
     const hasRemoteData = remote.orders?.length || remote.members?.length || remote.referralCodes?.length || Object.keys(remote.products || {}).length;
     if (hasRemoteData) {
@@ -950,7 +979,7 @@ async function initializeAdmin() {
         body: JSON.stringify({ email: loginForm.elements.email.value, password: loginForm.elements.password.value }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Não foi possível entrar.');
+      if (!response.ok) throw new Error(result.error || '로그인할 수 없습니다.');
       await loadRemoteState();
       showApp();
       renderAll();
@@ -968,7 +997,7 @@ async function initializeAdmin() {
     showApp();
     renderAll();
   } catch (error) {
-    showLogin('O painel precisa ser configurado no servidor antes do primeiro acesso.');
+    showLogin('관리자 화면을 사용하려면 서버 설정이 필요합니다.');
   }
 }
 

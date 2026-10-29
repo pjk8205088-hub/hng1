@@ -228,13 +228,13 @@ function resolveFile(requestPath) {
 async function handleApi(req, res, pathname) {
   if (pathname === '/api/admin/login' && req.method === 'POST') {
     if (!adminConfigured()) {
-      return sendJson(res, 503, { error: 'Admin credentials are not configured on the server.' });
+      return sendJson(res, 503, { error: '서버에 관리자 계정이 설정되지 않았습니다.' });
     }
     const body = await readJson(req, 16 * 1024);
     const email = cleanText(body.email, 160).toLowerCase();
     const password = String(body.password ?? '');
     if (email !== process.env.ADMIN_EMAIL.toLowerCase() || password !== process.env.ADMIN_PASSWORD) {
-      return sendJson(res, 401, { error: 'E-mail ou senha incorretos.' });
+      return sendJson(res, 401, { error: '이메일 또는 비밀번호가 올바르지 않습니다.' });
     }
     const token = createSession();
     return sendJson(res, 200, { ok: true, email }, { 'Set-Cookie': sessionCookie(token) });
@@ -336,7 +336,7 @@ async function handleApi(req, res, pathname) {
 
   if (!pathname.startsWith('/api/admin/')) return false;
   if (!hasAdminSession(req)) {
-    sendJson(res, 401, { error: 'Admin authentication required.' });
+    sendJson(res, 401, { error: '관리자 로그인이 필요합니다.' });
     return true;
   }
 
@@ -347,7 +347,7 @@ async function handleApi(req, res, pathname) {
   if (pathname === '/api/admin/state' && req.method === 'POST') {
     const body = await readJson(req);
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
-      return sendJson(res, 400, { error: 'Invalid admin state.' });
+      return sendJson(res, 400, { error: '관리자 데이터 형식이 올바르지 않습니다.' });
     }
     data = {
       ...structuredClone(defaultData),
@@ -363,7 +363,7 @@ async function handleApi(req, res, pathname) {
     return sendJson(res, 200, { ok: true, savedAt: new Date().toISOString() });
   }
 
-  sendJson(res, 404, { error: 'Admin endpoint not found.' });
+  sendJson(res, 404, { error: '관리자 기능을 찾을 수 없습니다.' });
   return true;
 }
 

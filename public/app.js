@@ -38,6 +38,7 @@ const I18N = {
     "plans.basic.two": "숙소 안내",
     "plans.basic.three": "외국인등록증 발급 및 은행 계좌 개설 지원",
     "plans.basic.four": "한국 유심 카드",
+    "plans.basic.five": "한국 워킹홀리데이 기초 오리엔테이션",
     "plans.basic.oldLabel": "정가:",
     "plans.basic.newLabel": "할인가:",
     "plans.basic.pay": "픽스 또는 카드 최대 12개월 할부",
@@ -93,6 +94,7 @@ const I18N = {
     "partner.copy": "ANSA가 비자, 항공권과 출국 전 첫 단계를 지원합니다.",
     "partner.whatsapp": "왓츠앱 상담 ↗",
     "partner.instagram": "인스타그램 ↗",
+    "partner.email": "ANSA 이메일 ↗",
     "partner.website": "공식 사이트 ↗",
     "faq.kicker": "자주 묻는 질문",
     "faq.title": "한국 생활을 준비하며 궁금한 점을 확인하세요.",
@@ -197,6 +199,7 @@ const I18N = {
     "plans.basic.two": "Housing referral",
     "plans.basic.three": "Care Day (ARC + bank)",
     "plans.basic.four": "Korean SIM card",
+    "plans.basic.five": "Basic Korean Working Holiday orientation",
     "plans.basic.oldLabel": "From:",
     "plans.basic.newLabel": "Only:",
     "plans.basic.pay": "PIX or up to 12x by card",
@@ -247,6 +250,7 @@ const I18N = {
     "partner.copy": "ANSA handles visa prep, flight booking, and the first step before the H&G plan is purchased.",
     "partner.whatsapp": "WhatsApp ↗",
     "partner.instagram": "Instagram ↗",
+    "partner.email": "ANSA e-mail ↗",
     "partner.website": "Official site ↗",
     "faq.kicker": "FAQ",
     "faq.title": "Short questions with direct answers.",
@@ -359,6 +363,7 @@ const I18N = {
     "plans.basic.two": "Indicação de moradia",
     "plans.basic.three": "Care Day (ARC + banco)",
     "plans.basic.four": "Chip SIM coreano",
+    "plans.basic.five": "Orientação inicial para o Working Holiday na Coreia",
     "plans.basic.oldLabel": "De:",
     "plans.basic.newLabel": "Por apenas:",
     "plans.basic.pay": "PIX ou até 12x no cartão",
@@ -409,6 +414,7 @@ const I18N = {
     "partner.copy": "A ANSA cuida da preparação do visto, da passagem e do primeiro passo antes da contratação do plano H&G.",
     "partner.whatsapp": "WhatsApp ↗",
     "partner.instagram": "Instagram ↗",
+    "partner.email": "E-mail ANSA ↗",
     "partner.website": "Site oficial ↗",
     "faq.kicker": "FAQ",
     "faq.title": "Perguntas curtas com respostas diretas.",
@@ -679,7 +685,7 @@ form?.addEventListener('submit', async (event) => {
   const whatsapp = document.querySelector('.dialog-success a');
   const message = `H&G application / ${data.name} / ${data.email} / ${data.phone} / ${data.arrival} / ${checkoutRecord.plan} / ${checkoutRecord.paymentMethod} / ${checkoutRecord.referralCode}`;
   if (whatsapp) {
-    whatsapp.href = `https://wa.me/821055613505?text=${encodeURIComponent(message)}`;
+    whatsapp.href = `https://wa.me/message/K4XK6V4YYKTPH1?text=${encodeURIComponent(message)}`;
   }
 
   if (form) form.hidden = true;

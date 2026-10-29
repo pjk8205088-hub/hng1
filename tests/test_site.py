@@ -32,7 +32,7 @@ class LandingPageTest(unittest.TestCase):
 
     def test_admin_dashboard_uses_adminlte(self):
         html = (PUBLIC / "admin.html").read_text(encoding="utf-8")
-        for marker in ("AdminLTE 4.8.5", "Pedidos & pagamentos", "Códigos de parceiro", "Produtos: turismo & estudantes estrangeiros"):
+        for marker in ("AdminLTE 4.8.5", "주문 및 결제", "추천인 코드", "상품: 관광 및 유학생"):
             self.assertIn(marker, html)
 
 
