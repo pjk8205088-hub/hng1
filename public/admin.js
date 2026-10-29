@@ -318,6 +318,10 @@ function statusLabel(status) {
       return '결제 완료';
     case 'refunded':
       return '환불 완료';
+    case 'refund_pending':
+      return '환불 처리 중';
+    case 'refund_rejected':
+      return '환불 거절';
     default:
       return '결제 대기';
   }
@@ -328,6 +332,10 @@ function statusBadgeClass(status) {
     case 'paid':
       return 'badge-paid';
     case 'refunded':
+      return 'badge-refunded';
+    case 'refund_pending':
+      return 'badge-pending';
+    case 'refund_rejected':
       return 'badge-refunded';
     default:
       return 'badge-pending';
@@ -436,7 +444,7 @@ function renderOrders() {
       <td><span class="badge badge-soft ${statusBadgeClass(order.status)}">${statusLabel(order.status)}</span></td>
       <td class="text-end text-nowrap">
         <button class="btn btn-sm btn-outline-primary" data-action="view-order" data-id="${order.id}">상세 보기</button>
-        <button class="btn btn-sm btn-outline-danger ms-1" data-action="refund-order" data-id="${order.id}" ${order.status === 'refunded' ? 'disabled' : ''}>환불 처리</button>
+        <button class="btn btn-sm btn-outline-danger ms-1" data-action="refund-order" data-id="${order.id}" ${['refunded', 'refund_pending'].includes(order.status) ? 'disabled' : ''}>환불 처리</button>
       </td>
     </tr>
   `).join('');
@@ -620,7 +628,7 @@ function openOrderDetails(orderId) {
   const order = state.orders.find((item) => item.id === orderId);
   if (!order) return;
   activeOrderId = order.id;
-  document.getElementById('modalRefundBtn').disabled = order.status === 'refunded';
+  document.getElementById('modalRefundBtn').disabled = ['refunded', 'refund_pending'].includes(order.status);
 
   document.getElementById('orderModalBody').innerHTML = `
     <div class="col-md-6">
@@ -662,16 +670,28 @@ function openOrderDetails(orderId) {
   modalRefs.order.show();
 }
 
-function refundOrder(orderId) {
+async function refundOrder(orderId) {
   const order = state.orders.find((item) => item.id === orderId);
-  if (!order || order.status === 'refunded') return;
+  if (!order || order.status === 'refunded' || order.refundStatus === 'success') return;
   if (!confirm(`주문 ${order.id} (${order.customer})을 환불 처리하시겠습니까?`)) return;
-  order.status = 'refunded';
-  saveState();
-  renderAll();
-  modalRefs.order.hide();
-  toast(`주문 ${order.id}을 환불 완료로 표시했습니다.`, 'danger');
-  pushActivity('환불 처리', `${order.customer}의 주문 ${order.id}을 환불 완료로 표시했습니다.`, '지금', 'bi bi-arrow-counterclockwise');
+  try {
+    const response = await fetch('/api/admin/orders/refund', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: order.id }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || 'PG 환불 요청에 실패했습니다.');
+    const index = state.orders.findIndex((item) => item.id === order.id);
+    if (index >= 0) state.orders[index] = payload.order || { ...order, status: 'refund_pending', refundStatus: String(payload.status || 'pending').toLowerCase() };
+    renderAll();
+    modalRefs.order.hide();
+    toast(`주문 ${order.id} 환불 요청이 접수되었습니다. (${payload.status || 'PENDING'})`, 'danger');
+    pushActivity('환불 처리', `${order.customer}의 주문 ${order.id}에 PG 환불을 요청했습니다.`, '지금', 'bi bi-arrow-counterclockwise');
+  } catch (error) {
+    toast(error.message, 'danger');
+  }
 }
 
 function openPartnerForm(code = null) {

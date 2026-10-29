@@ -193,6 +193,24 @@ async function dLocalRequest(pathname, requestPayload, idempotencyKey = '') {
   return responsePayload;
 }
 
+async function dLocalGet(pathname) {
+  const date = new Date().toISOString();
+  const response = await fetch(`${process.env.DLOCAL_API_BASE || 'https://api.dlocal.com'}${pathname}`, {
+    method: 'GET',
+    headers: {
+      'X-Date': date,
+      'X-Login': process.env.DLOCAL_X_LOGIN,
+      'X-Trans-Key': process.env.DLOCAL_X_TRANS_KEY,
+      'X-Version': '2.1',
+      'User-Agent': 'H&G Agency / 1.0',
+      Authorization: `V2-HMAC-SHA256, Signature: ${dLocalSignature(date, '')}`,
+    },
+  });
+  const responsePayload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(responsePayload.message || responsePayload.status_detail || `dLocal request failed (${response.status}).`);
+  return responsePayload;
+}
+
 function validDLocalNotification(req, rawBody) {
   if (!dLocalConfigured()) return false;
   const date = String(req.headers['x-date'] || '');
@@ -322,6 +340,23 @@ async function handleApi(req, res, pathname) {
     return sendJson(res, 201, { ok: true, provider: 'dlocal', paymentId: payment.id, status: payment.status, checkoutUrl: payment.redirect_url || payment.redirect_URL || '' });
   }
 
+  if (pathname === '/api/webhooks/dlocal/refund' && (req.method === 'POST' || req.method === 'GET')) {
+    if (req.method === 'GET') return sendJson(res, 200, { ok: true });
+    const { body, rawBody } = await readJsonWithRawBody(req, 64 * 1024);
+    if (!validDLocalNotification(req, rawBody)) return sendJson(res, 401, { error: 'Invalid dLocal signature.' });
+    const orderIndex = data.orders.findIndex((item) => item.providerPaymentId === String(body.payment_id || ''));
+    if (orderIndex >= 0) {
+      data.orders[orderIndex] = {
+        ...data.orders[orderIndex],
+        refundId: String(body.id || data.orders[orderIndex].refundId || ''),
+        refundStatus: String(body.status || 'pending').toLowerCase(),
+        status: String(body.status || '').toUpperCase() === 'SUCCESS' ? 'refunded' : data.orders[orderIndex].status,
+      };
+      saveData();
+    }
+    return sendJson(res, 200, { ok: true });
+  }
+
   if (pathname === '/api/webhooks/dlocal' && (req.method === 'POST' || req.method === 'GET')) {
     if (req.method === 'GET') return sendJson(res, 200, { ok: true });
     const { body, rawBody } = await readJsonWithRawBody(req, 64 * 1024);
@@ -342,6 +377,42 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === '/api/admin/state' && req.method === 'GET') {
     return sendJson(res, 200, data);
+  }
+
+  if (pathname === '/api/admin/orders/refund' && req.method === 'POST') {
+    if (!dLocalConfigured()) return sendJson(res, 503, { error: 'dLocal 환불 API 자격증명이 설정되지 않았습니다.' });
+    const body = await readJson(req, 16 * 1024);
+    const orderId = cleanText(body.orderId, 80);
+    const orderIndex = data.orders.findIndex((item) => item.id === orderId);
+    if (orderIndex < 0) return sendJson(res, 404, { error: '주문을 찾을 수 없습니다.' });
+    const order = data.orders[orderIndex];
+    if (!order.providerPaymentId) return sendJson(res, 400, { error: 'PG 결제 ID가 없는 주문입니다.' });
+    if (order.status === 'refunded' || order.refundStatus === 'success') return sendJson(res, 409, { error: '이미 환불 처리된 주문입니다.' });
+    const refund = await dLocalRequest('/refunds', {
+      payment_id: order.providerPaymentId,
+      amount: Number(order.amount),
+      currency: 'BRL',
+      order_refund_id: `REF-${order.id}-${Date.now()}`.slice(0, 100),
+      description: 'H&G 고객 환불',
+      notification_url: process.env.DLOCAL_REFUND_NOTIFICATION_URL || 'https://www.hng1.com/api/webhooks/dlocal/refund',
+    }, `refund-${order.id}-${Date.now()}`);
+    data.orders[orderIndex] = {
+      ...order,
+      refundId: String(refund.id || ''),
+      refundStatus: String(refund.status || 'pending').toLowerCase(),
+      status: String(refund.status || '').toUpperCase() === 'SUCCESS' ? 'refunded' : 'refund_pending',
+      refundedAt: new Date().toISOString(),
+    };
+    saveData();
+    return sendJson(res, 200, { ok: true, refundId: refund.id, status: refund.status, order: data.orders[orderIndex] });
+  }
+
+  if (pathname.startsWith('/api/admin/refunds/') && pathname.endsWith('/status') && req.method === 'GET') {
+    if (!dLocalConfigured()) return sendJson(res, 503, { error: 'dLocal 환불 API 자격증명이 설정되지 않았습니다.' });
+    const refundId = decodeURIComponent(pathname.slice('/api/admin/refunds/'.length, -'/status'.length));
+    if (!refundId) return sendJson(res, 400, { error: '환불 ID가 필요합니다.' });
+    const refund = await dLocalGet(`/refunds/${encodeURIComponent(refundId)}/status`);
+    return sendJson(res, 200, refund);
   }
 
   if (pathname === '/api/admin/state' && req.method === 'POST') {
