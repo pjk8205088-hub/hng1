@@ -809,12 +809,10 @@ summary:focus-visible {
   white-space: nowrap;
 }
 .payment-mark--pix {
-  padding: 5px 8px;
-  border-radius: 999px;
-  color: #0f7f4f;
-  background: #e8f8ef;
-  font: 800 9px/1 var(--mono);
-  letter-spacing: 0.14em;
+  color: #2eb9a6;
+  font: 800 18px/1 Arial, sans-serif;
+  letter-spacing: -0.08em;
+  text-transform: lowercase;
 }
 .payment-mark--mastercard {
   position: relative;
@@ -832,11 +830,11 @@ summary:focus-visible {
 }
 .payment-mark--mastercard span:first-child {
   left: 0;
-  background: #ea001b;
+  background: #eb001b;
 }
 .payment-mark--mastercard span:last-child {
   right: 0;
-  background: #ff5f00;
+  background: #f79e1b;
 }
 .payment-badge--mastercard .payment-label {
   color: #312b2b;
@@ -845,12 +843,9 @@ summary:focus-visible {
   text-transform: uppercase;
 }
 .payment-mark--visa {
-  padding: 5px 9px 4px;
-  border-radius: 6px;
-  color: #fff;
-  background: linear-gradient(135deg, #1a4fb3, #245ec9);
-  font: 900 10px/1 var(--mono);
-  letter-spacing: 0.18em;
+  color: #1434cb;
+  font: italic 900 16px/1 Arial, sans-serif;
+  letter-spacing: -0.05em;
 }
 .payment-note {
   margin: 0;
