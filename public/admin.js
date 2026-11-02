@@ -4,6 +4,9 @@ const CHECKOUT_STORAGE_KEY = 'hng-checkout-submissions-v1';
 // Admin-only Korean display for existing PT-BR catalog copy. Saving an
 // unchanged translated field restores the original customer-facing text.
 const PRODUCT_COPY_KO = new Map([
+  ['Plano Basic', 'H-1 워킹홀리데이 Basic (베이직)'],
+  ['Plano Standard', 'H-1 워킹홀리데이 Standard (스탠더드)'],
+  ['Plano All-In', 'H-1 워킹홀리데이 All-In (올인)'],
   ['Pacote Turismo Coreia', '한국 관광 상품'],
   ['Pacote Estudante Internacional', '한국 유학생 상품'],
   ['Pacote de entrada para viajantes que querem experiência coreana com suporte comercial e atendimento em PT-BR.', '한국 여행 경험을 원하는 고객을 위한 입문 상품입니다. 구매 상담과 브라질 포르투갈어 안내를 제공합니다.'],
@@ -439,6 +442,7 @@ function renderOrders() {
       <td>${productCopyForAdmin(order.plan)}</td>
       <td><span class="badge badge-soft ${paymentBadgeClass(order.paymentMethod)}">${paymentLabel(order.paymentMethod)}</span></td>
       <td><span class="text-uppercase fw-semibold">${order.referralCode}</span></td>
+      <td>${order.arrival || '—'}</td>
       <td>${order.paymentDate}</td>
       <td class="fw-bold">${formatCurrency(order.amount)}</td>
       <td><span class="badge badge-soft ${statusBadgeClass(order.status)}">${statusLabel(order.status)}</span></td>
@@ -509,6 +513,7 @@ function renderMembers() {
       <td><a href="mailto:${member.email}">${member.email}</a></td>
       <td>${productCopyForAdmin(member.plan) || '—'}</td>
       <td><span class="text-uppercase fw-semibold">${member.referralCode || '—'}</span></td>
+      <td>${member.arrival || '—'}</td>
       <td>${member.joinedAt || '—'}</td>
       <td><span class="badge badge-soft ${memberStatusClass(member.status)}">${memberStatusLabel(member.status)}</span></td>
       <td class="text-end text-nowrap">
@@ -585,7 +590,7 @@ function renderAll() {
 
 function exportCsv() {
   const rows = [
-    ['pedido', 'cliente', 'whatsapp', 'email', 'plano', 'pagamento', 'codigo', 'data_pagamento', 'valor_brl', 'status'],
+    ['pedido', 'cliente', 'whatsapp', 'email', 'plano', 'pagamento', 'codigo', 'previsao_chegada', 'data_pagamento', 'valor_brl', 'status'],
     ...getFilteredOrders().map((order) => [
       order.id,
       order.customer,
@@ -594,6 +599,7 @@ function exportCsv() {
       order.plan,
       paymentLabel(order.paymentMethod),
       order.referralCode,
+      order.arrival || '—',
       order.paymentDate,
       Number(order.amount || 0).toFixed(2).replace('.', ','),
       statusLabel(order.status),

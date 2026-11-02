@@ -283,6 +283,7 @@ async function handleApi(req, res, pathname) {
       plan: selectedPlan.name,
       paymentMethod: body.paymentMethod === 'card' ? 'card' : 'pix',
       paymentDate: cleanText(body.paymentDate, 40) || now.toLocaleString('pt-BR'),
+      arrival: cleanText(body.arrival, 120),
       amount: selectedPlan.amount,
       referralCode: cleanText(body.referralCode, 80) || '—',
       status: 'pending',
@@ -297,6 +298,7 @@ async function handleApi(req, res, pathname) {
       whatsapp: order.whatsapp,
       plan: order.plan,
       referralCode: order.referralCode,
+      arrival: order.arrival,
       joinedAt: order.paymentDate,
       status: 'active',
     };
