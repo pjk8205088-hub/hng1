@@ -166,7 +166,20 @@ function dLocalConfigured() {
 }
 
 function dLocalPaymentsEnabled() {
-  return process.env.DLOCAL_LIVE_ENABLED === 'true' && dLocalConfigured();
+  if (!dLocalConfigured()) return false;
+  const mode = process.env.DLOCAL_MODE || 'live';
+  if (mode === 'sandbox') {
+    return process.env.DLOCAL_SANDBOX_ENABLED === 'true'
+      && process.env.RAILWAY_ENVIRONMENT_NAME !== 'production'
+      && dLocalApiBase() === 'https://sandbox.dlocal.com';
+  }
+  return mode === 'live'
+    && process.env.DLOCAL_LIVE_ENABLED === 'true'
+    && dLocalApiBase() === 'https://api.dlocal.com';
+}
+
+function dLocalApiBase() {
+  return (process.env.DLOCAL_API_BASE || 'https://api.dlocal.com').replace(/\/$/, '');
 }
 
 function dLocalSignature(date, requestBody) {
@@ -178,7 +191,7 @@ function dLocalSignature(date, requestBody) {
 async function dLocalRequest(pathname, requestPayload, idempotencyKey = '') {
   const requestBody = JSON.stringify(requestPayload);
   const date = new Date().toISOString();
-  const response = await fetch(`${process.env.DLOCAL_API_BASE || 'https://api.dlocal.com'}${pathname}`, {
+  const response = await fetch(`${dLocalApiBase()}${pathname}`, {
     method: 'POST',
     headers: {
       'X-Date': date,
@@ -199,7 +212,7 @@ async function dLocalRequest(pathname, requestPayload, idempotencyKey = '') {
 
 async function dLocalGet(pathname) {
   const date = new Date().toISOString();
-  const response = await fetch(`${process.env.DLOCAL_API_BASE || 'https://api.dlocal.com'}${pathname}`, {
+  const response = await fetch(`${dLocalApiBase()}${pathname}`, {
     method: 'GET',
     headers: {
       'X-Date': date,
