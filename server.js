@@ -165,6 +165,10 @@ function dLocalConfigured() {
   return Boolean(process.env.DLOCAL_X_LOGIN && process.env.DLOCAL_X_TRANS_KEY && process.env.DLOCAL_SECRET_KEY);
 }
 
+function dLocalPaymentsEnabled() {
+  return process.env.DLOCAL_LIVE_ENABLED === 'true' && dLocalConfigured();
+}
+
 function dLocalSignature(date, requestBody) {
   return crypto.createHmac('sha256', process.env.DLOCAL_SECRET_KEY)
     .update(`${process.env.DLOCAL_X_LOGIN}${date}${requestBody}`)
@@ -309,7 +313,7 @@ async function handleApi(req, res, pathname) {
   }
 
   if ((pathname === '/api/payments/dlocal/pix' || pathname === '/api/payments/dlocal/card') && req.method === 'POST') {
-    if (!dLocalConfigured()) return sendJson(res, 503, { error: 'dLocal ainda não está configurado. Adicione as credenciais no Railway.' });
+    if (!dLocalPaymentsEnabled()) return sendJson(res, 503, { error: 'O pagamento online ainda não está disponível. Entre em contato pelo WhatsApp.' });
     const body = await readJson(req, 64 * 1024);
     const selectedPlan = resolvePlan(body.plan);
     if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
@@ -382,7 +386,7 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === '/api/admin/orders/refund' && req.method === 'POST') {
-    if (!dLocalConfigured()) return sendJson(res, 503, { error: 'dLocal 환불 API 자격증명이 설정되지 않았습니다.' });
+    if (!dLocalPaymentsEnabled()) return sendJson(res, 503, { error: 'dLocal 운영 결제가 활성화되지 않았습니다.' });
     const body = await readJson(req, 16 * 1024);
     const orderId = cleanText(body.orderId, 80);
     const orderIndex = data.orders.findIndex((item) => item.id === orderId);

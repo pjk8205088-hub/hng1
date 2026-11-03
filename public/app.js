@@ -627,6 +627,7 @@ form?.addEventListener('submit', async (event) => {
     paymentDate: new Date().toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }),
     amount: Number(data.amount || form.dataset.amount || 0),
     referralCode: (data.referralCode || '').trim() || '—',
+    arrival: data.arrival || '—',
     status: 'pending',
   };
 

@@ -13,7 +13,13 @@ test('admin document uses Korean labels and fresh assets', () => {
   assert.match(html, /<title>H&G 관리자/);
   assert.match(html, /추천인 코드/);
   assert.match(html, /상품 설명/);
-  assert.match(html, /admin\.js\?v=20261018-ko2/);
+  assert.match(html, /admin\.js\?v=20261103-h1/);
+  assert.match(html, /H-1 워킹홀리데이 플랜/);
+  for (const type of ['basic', 'standard', 'allin']) {
+    assert.match(html, new RegExp(`data-product-form="${type}"`));
+    assert.match(html, new RegExp(`id="${type}Preview"`));
+  }
+  assert.match(html, /<th>입국 예정 시기<\/th>/);
   assert.doesNotMatch(html, />Painel</);
   assert.doesNotMatch(html, />Códigos parceiros</);
   assert.doesNotMatch(html, />Nome do produto</);
@@ -26,4 +32,17 @@ test('known Portuguese catalog content displays in Korean without changing the s
   assert.match(shown, /[가-힣]/u);
   assert.equal(catalog.productCopyForSite(shown), original);
   assert.equal(catalog.productCopyForSite('새 상품'), '새 상품');
+  assert.equal(catalog.productCopyForSite('H-1 워킹홀리데이 Basic (베이직)'), 'Plano Basic');
+  assert.equal(catalog.productCopyForAdmin('Pacote Turismo Coreia'), 'H-1 워킹홀리데이 Basic (베이직)');
+});
+
+test('arrival period follows an application into the order and customer views', () => {
+  const app = fs.readFileSync(path.join(root, 'public/app.js'), 'utf8');
+  const server = fs.readFileSync(path.join(root, 'server.js'), 'utf8');
+  assert.match(app, /arrival: data\.arrival \|\| '—'/);
+  assert.match(server, /arrival: cleanText\(body\.arrival, 120\)/);
+  assert.match(server, /arrival: order\.arrival/);
+  assert.match(script, /arrival: submission\.arrival \|\| '—'/);
+  assert.match(script, /<td>\$\{order\.arrival \|\| '—'\}<\/td>/);
+  assert.match(script, /<td>\$\{member\.arrival \|\| '—'\}<\/td>/);
 });

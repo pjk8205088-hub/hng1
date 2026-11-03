@@ -275,8 +275,8 @@
             <div class="card card-outline card-info shadow-sm admin-card">
               <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div>
-                  <h3 class="card-title fw-bold mb-1">상품: 관광 및 유학생</h3>
-                  <p class="text-secondary small mb-0">상품 가격(R$), 포함 내역 및 대표 이미지를 수정하세요.</p>
+                  <h3 class="card-title fw-bold mb-1">H-1 워킹홀리데이 플랜</h3>
+                  <p class="text-secondary small mb-0">실제 판매하는 베이직·스탠더드·올인 플랜을 확인하고 관리하세요.</p>
                 </div>
                 <span class="badge bg-info-subtle text-info border border-info-subtle">간편 수정</span>
               </div>
@@ -284,20 +284,23 @@
                 <p class="small text-secondary mb-3">기존 포르투갈어 상품 내용은 관리자 화면에서만 한글로 보입니다. 새 문구를 저장하면 고객용 홈페이지에도 입력한 언어 그대로 표시될 수 있습니다.</p>
                 <ul class="nav nav-tabs" id="productTabs" role="tablist">
                   <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="tourism-tab" data-bs-toggle="tab" data-bs-target="#tourism-pane" type="button" role="tab">관광 상품</button>
+                    <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic-pane" type="button" role="tab">베이직</button>
                   </li>
                   <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="student-tab" data-bs-toggle="tab" data-bs-target="#student-pane" type="button" role="tab">유학생 상품</button>
+                    <button class="nav-link" id="standard-tab" data-bs-toggle="tab" data-bs-target="#standard-pane" type="button" role="tab">스탠더드</button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="allin-tab" data-bs-toggle="tab" data-bs-target="#allin-pane" type="button" role="tab">올인</button>
                   </li>
                 </ul>
                 <div class="tab-content pt-3">
-                  <div class="tab-pane fade show active" id="tourism-pane" role="tabpanel">
+                  <div class="tab-pane fade show active" id="basic-pane" role="tabpanel">
                     <div class="row g-4 align-items-start">
                       <div class="col-lg-5">
-                        <img id="tourismPreview" class="img-fluid rounded-4 admin-preview shadow-sm" alt="관광 상품 미리보기">
+                        <img id="basicPreview" class="img-fluid rounded-4 admin-preview shadow-sm" alt="베이직 플랜 미리보기">
                       </div>
                       <div class="col-lg-7">
-                        <form class="row g-3 product-form" data-product-form="tourism">
+                        <form class="row g-3 product-form" data-product-form="basic">
                           <div class="col-md-8">
                             <label class="form-label">상품명</label>
                             <input class="form-control" name="title" required>
@@ -337,13 +340,13 @@
                       </div>
                     </div>
                   </div>
-                  <div class="tab-pane fade" id="student-pane" role="tabpanel">
+                  <div class="tab-pane fade" id="standard-pane" role="tabpanel">
                     <div class="row g-4 align-items-start">
                       <div class="col-lg-5">
-                        <img id="studentPreview" class="img-fluid rounded-4 admin-preview shadow-sm" alt="유학생 상품 미리보기">
+                        <img id="standardPreview" class="img-fluid rounded-4 admin-preview shadow-sm" alt="스탠더드 플랜 미리보기">
                       </div>
                       <div class="col-lg-7">
-                        <form class="row g-3 product-form" data-product-form="student">
+                        <form class="row g-3 product-form" data-product-form="standard">
                           <div class="col-md-8">
                             <label class="form-label">상품명</label>
                             <input class="form-control" name="title" required>
@@ -375,6 +378,52 @@
                           <div class="col-md-4">
                             <label class="form-label">주요 버튼 문구</label>
                             <input class="form-control" name="cta" placeholder="예: 등록 시작">
+                          </div>
+                          <div class="col-md-4 d-flex align-items-end justify-content-end gap-2">
+                            <button class="btn btn-primary" type="submit"><i class="bi bi-save me-1"></i>상품 저장</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tab-pane fade" id="allin-pane" role="tabpanel">
+                    <div class="row g-4 align-items-start">
+                      <div class="col-lg-5">
+                        <img id="allinPreview" class="img-fluid rounded-4 admin-preview shadow-sm" alt="올인 플랜 미리보기">
+                      </div>
+                      <div class="col-lg-7">
+                        <form class="row g-3 product-form" data-product-form="allin">
+                          <div class="col-md-8">
+                            <label class="form-label">상품명</label>
+                            <input class="form-control" name="title" required>
+                          </div>
+                          <div class="col-md-4">
+                            <label class="form-label">가격 (R$)</label>
+                            <input class="form-control" name="price" type="number" min="0" step="0.01" required>
+                          </div>
+                          <div class="col-12">
+                            <label class="form-label">대표 이미지 (URL 또는 경로)</label>
+                            <input class="form-control" name="image" required>
+                          </div>
+                          <div class="col-12">
+                            <label class="form-label">상품 설명</label>
+                            <textarea class="form-control" name="description" rows="3" required></textarea>
+                          </div>
+                          <div class="col-12">
+                            <label class="form-label">포함 내역 (한 줄에 하나씩)</label>
+                            <textarea class="form-control" name="includes" rows="5" required></textarea>
+                          </div>
+                          <div class="col-md-4">
+                            <label class="form-label">상태</label>
+                            <select class="form-select" name="availability">
+                              <option value="available">판매 가능</option>
+                              <option value="few">잔여 수량 적음</option>
+                              <option value="soldout">품절</option>
+                            </select>
+                          </div>
+                          <div class="col-md-4">
+                            <label class="form-label">주요 버튼 문구</label>
+                            <input class="form-control" name="cta" placeholder="예: 지금 신청하기">
                           </div>
                           <div class="col-md-4 d-flex align-items-end justify-content-end gap-2">
                             <button class="btn btn-primary" type="submit"><i class="bi bi-save me-1"></i>상품 저장</button>
@@ -570,7 +619,7 @@
           </div>
           <div class="col-md-7">
             <label class="form-label">플랜</label>
-            <input class="form-control" name="plan" placeholder="한국 관광 상품">
+            <input class="form-control" name="plan" placeholder="H-1 워킹홀리데이 Basic (베이직)">
           </div>
           <div class="col-md-5">
             <label class="form-label">추천인 코드</label>
@@ -592,7 +641,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/browser/overlayscrollbars.browser.es6.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@4.8.5/dist/js/adminlte.min.js"></script>
-<script src="/admin.js?v=20261018-ko2"></script>
-<script src="/admin-ko.js?v=20261018-ko2"></script>
+<script src="/admin.js?v=20261103-h1"></script>
+<script src="/admin-ko.js?v=20261103-h1"></script>
 </body>
 </html>

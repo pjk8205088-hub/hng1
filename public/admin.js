@@ -7,8 +7,6 @@ const PRODUCT_COPY_KO = new Map([
   ['Plano Basic', 'H-1 워킹홀리데이 Basic (베이직)'],
   ['Plano Standard', 'H-1 워킹홀리데이 Standard (스탠더드)'],
   ['Plano All-In', 'H-1 워킹홀리데이 All-In (올인)'],
-  ['Pacote Turismo Coreia', '한국 관광 상품'],
-  ['Pacote Estudante Internacional', '한국 유학생 상품'],
   ['Pacote de entrada para viajantes que querem experiência coreana com suporte comercial e atendimento em PT-BR.', '한국 여행 경험을 원하는 고객을 위한 입문 상품입니다. 구매 상담과 브라질 포르투갈어 안내를 제공합니다.'],
   ['Suporte de compra e contratação', '구매 및 계약 지원'],
   ['Orientação em português do Brasil', '브라질 포르투갈어 안내'],
@@ -23,7 +21,11 @@ const PRODUCT_COPY_KO = new Map([
   ['Iniciar matrícula', '등록 시작'],
 ]);
 const PRODUCT_COPY_PT = new Map([...PRODUCT_COPY_KO].map(([pt, ko]) => [ko, pt]));
-const productCopyForAdmin = (value) => PRODUCT_COPY_KO.get(value) || value || '';
+const LEGACY_PLAN_NAMES_KO = new Map([
+  ['Pacote Turismo Coreia', 'H-1 워킹홀리데이 Basic (베이직)'],
+  ['Pacote Estudante Internacional', 'H-1 워킹홀리데이 Standard (스탠더드)'],
+]);
+const productCopyForAdmin = (value) => PRODUCT_COPY_KO.get(value) || LEGACY_PLAN_NAMES_KO.get(value) || value || '';
 const productCopyForSite = (value) => PRODUCT_COPY_PT.get(value) || value || '';
 const PARTNER_NOTE_KO = new Map([
   ['Canal principal com operação e suporte no Brasil.', '브라질 운영 및 지원을 담당하는 주요 채널'],
@@ -133,33 +135,46 @@ const defaultState = {
     },
   ],
   products: {
-    tourism: {
-      title: 'Pacote Turismo Coreia',
+    basic: {
+      title: 'Plano Basic',
       price: 2980,
       image: '/assets/plan-job-seoul.png',
-      description: 'Pacote de entrada para viajantes que querem experiência coreana com suporte comercial e atendimento em PT-BR.',
+      description: 'Instalação e emprego na Coreia',
       includes: [
-        'Suporte de compra e contratação',
-        'Orientação em português do Brasil',
-        'Material comercial simplificado',
-        'Contato direto por WhatsApp',
+        'Suporte a emprego',
+        'Indicação de moradia',
+        'Care Day (ARC + banco)',
+        'Chip SIM coreano',
+        'Orientação básica do Working Holiday na Coreia (OT)',
       ],
       availability: 'available',
-      cta: 'Finalizar inscrição',
+      cta: 'Inscrever-se agora',
     },
-    student: {
-      title: 'Pacote Estudante Internacional',
+    standard: {
+      title: 'Plano Standard',
       price: 5480,
-      image: '/assets/plan-class-seoul.png',
-      description: 'Pacote com foco em estudantes estrangeiros, adaptado para chegada, vida local e fluxo de matrícula.',
+      image: '/assets/plan-home-seoul.png',
+      description: 'Instalação e estadia de 1 mês em Seul',
       includes: [
-        'Apoio de chegada e instalação',
-        'Organização do fluxo de matrícula',
-        'Ajustes de comunicação e suporte local',
-        'Integração com a jornada de estudos',
+        'Tudo do Plano Basic',
+        '1 mês de acomodação inclusa',
+        'Suporte no check-in',
       ],
       availability: 'few',
-      cta: 'Iniciar matrícula',
+      cta: 'Inscrever-se agora',
+    },
+    allin: {
+      title: 'Plano All-In',
+      price: 6480,
+      image: '/assets/plan-class-seoul.png',
+      description: 'Estadia, curso de coreano e suporte ampliado',
+      includes: [
+        'Tudo do Plano Standard',
+        '2 semanas de curso de coreano',
+        'Suporte de instalação ampliado',
+      ],
+      availability: 'available',
+      cta: 'Inscrever-se agora',
     },
   },
   checkout: {
@@ -187,8 +202,7 @@ const el = {
   partnersBody: document.getElementById('partnersTableBody'),
   membersBody: document.getElementById('membersTableBody'),
   activity: document.getElementById('activityTimeline'),
-  tourismPreview: document.getElementById('tourismPreview'),
-  studentPreview: document.getElementById('studentPreview'),
+  productPreviews: Object.fromEntries(['basic', 'standard', 'allin'].map((type) => [type, document.getElementById(`${type}Preview`)])),
   metricOrders: document.getElementById('metricOrders'),
   metricRevenue: document.getElementById('metricRevenue'),
   metricPayments: document.getElementById('metricPayments'),
@@ -234,8 +248,9 @@ function mergeState(input) {
   merged.products = {
     ...merged.products,
     ...(input.products || {}),
-    tourism: { ...merged.products.tourism, ...(input.products?.tourism || {}) },
-    student: { ...merged.products.student, ...(input.products?.student || {}) },
+    basic: { ...merged.products.basic, ...(input.products?.basic || {}) },
+    standard: { ...merged.products.standard, ...(input.products?.standard || {}) },
+    allin: { ...merged.products.allin, ...(input.products?.allin || {}) },
   };
   merged.checkout = { ...merged.checkout, ...(input.checkout || {}) };
   merged.activity = Array.isArray(input.activity) && input.activity.length ? input.activity : merged.activity;
@@ -292,6 +307,7 @@ function mergeCheckoutSubmissions(baseState) {
         paymentDate: submission.paymentDate || '—',
         amount: Number(submission.amount || 0),
         referralCode: submission.referralCode || '—',
+        arrival: submission.arrival || '—',
         status: submission.status || 'paid',
       }));
 
@@ -401,6 +417,8 @@ function getFilteredOrders() {
       order.whatsapp,
       order.email,
       order.plan,
+      productCopyForAdmin(order.plan),
+      order.arrival,
       order.referralCode,
       paymentLabel(order.paymentMethod),
       statusLabel(order.status),
@@ -429,7 +447,7 @@ function renderMetrics() {
 function renderOrders() {
   const rows = getFilteredOrders();
   if (!rows.length) {
-    el.ordersBody.innerHTML = '<tr><td colspan="11" class="text-center text-secondary py-4">주문 내역이 없습니다.</td></tr>';
+    el.ordersBody.innerHTML = '<tr><td colspan="12" class="text-center text-secondary py-4">주문 내역이 없습니다.</td></tr>';
     return;
   }
 
@@ -494,7 +512,7 @@ function filteredMembers() {
   const query = (el.memberSearch?.value || '').trim().toLowerCase();
   const status = el.memberStatusFilter?.value || 'all';
   return state.members.filter((member) => {
-    const haystack = [member.name, member.email, member.whatsapp, member.plan, member.referralCode].join(' ').toLowerCase();
+    const haystack = [member.name, member.email, member.whatsapp, member.plan, productCopyForAdmin(member.plan), member.referralCode, member.arrival].join(' ').toLowerCase();
     return (!query || haystack.includes(query)) && (status === 'all' || member.status === status);
   });
 }
@@ -503,7 +521,7 @@ function renderMembers() {
   if (!el.membersBody) return;
   const members = filteredMembers();
   if (!members.length) {
-    el.membersBody.innerHTML = '<tr><td colspan="8" class="text-center text-secondary py-4">회원이 없습니다.</td></tr>';
+    el.membersBody.innerHTML = '<tr><td colspan="9" class="text-center text-secondary py-4">회원이 없습니다.</td></tr>';
     return;
   }
   el.membersBody.innerHTML = members.map((member) => `
@@ -537,7 +555,7 @@ function fillProductForm(form, product) {
 
 function updateProductPreview(type) {
   const product = state.products[type];
-  const preview = type === 'tourism' ? el.tourismPreview : el.studentPreview;
+  const preview = el.productPreviews[type];
   if (preview && product) {
     preview.src = product.image || '';
     preview.alt = product.title || '상품 미리보기';
@@ -545,10 +563,10 @@ function updateProductPreview(type) {
 }
 
 function renderProducts() {
-  fillProductForm(document.querySelector('[data-product-form="tourism"]'), state.products.tourism);
-  fillProductForm(document.querySelector('[data-product-form="student"]'), state.products.student);
-  updateProductPreview('tourism');
-  updateProductPreview('student');
+  ['basic', 'standard', 'allin'].forEach((type) => {
+    fillProductForm(document.querySelector(`[data-product-form="${type}"]`), state.products[type]);
+    updateProductPreview(type);
+  });
 }
 
 function renderActivity() {
@@ -856,7 +874,7 @@ function bindProductForms() {
         description: productCopyForSite(form.elements.description.value.trim()),
         includes: form.elements.includes.value.split(/\r?\n/).map((line) => productCopyForSite(line.trim())).filter(Boolean),
         availability: form.elements.availability.value,
-        cta: productCopyForSite(form.elements.cta.value.trim()) || (type === 'tourism' ? 'Finalizar inscrição' : 'Iniciar matrícula'),
+        cta: productCopyForSite(form.elements.cta.value.trim()) || 'Inscrever-se agora',
       };
       state.products[type] = next;
       saveState();
@@ -950,15 +968,6 @@ function bindEvents() {
     await fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' });
     window.location.reload();
   });
-}
-
-function updateProductPreview(type) {
-  const product = state.products[type];
-  const preview = type === 'tourism' ? el.tourismPreview : el.studentPreview;
-  if (preview && product) {
-    preview.src = product.image || '';
-    preview.alt = product.title || '상품 미리보기';
-  }
 }
 
 async function initializeAdmin() {

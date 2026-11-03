@@ -6,3 +6,4 @@ tmp/
 data/admin-data.json
 data/admin-data.json.tmp
 .env
+.codex-remote-attachments/
