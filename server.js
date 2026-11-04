@@ -13,6 +13,7 @@ const planCatalog = new Map([
   ['basic', { name: 'Plano Basic', amount: 2980 }],
   ['standard', { name: 'Plano Standard', amount: 5480 }],
   ['all-in', { name: 'Plano All-In', amount: 6480 }],
+  ['test-100', { name: 'Plano Teste R$100', amount: 100 }],
 ]);
 
 const mimeTypes = new Map([
