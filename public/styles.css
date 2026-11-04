@@ -409,7 +409,7 @@ summary:focus-visible {
 }
 .plan-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   margin-top: 36px;
 }
@@ -988,6 +988,12 @@ summary:focus-visible {
   line-height: 1.7;
 }
 
+@media (max-width: 1280px) {
+  .plan-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1024px) {
   .site-nav > a:not(:last-of-type) {
     display: none;
@@ -995,7 +1001,6 @@ summary:focus-visible {
   .hero {
     grid-template-columns: 1fr;
   }
-  .plan-grid,
   .process-grid,
   .contact-section,
   .footer-top {
@@ -1012,6 +1017,10 @@ summary:focus-visible {
 }
 
 @media (max-width: 720px) {
+  .plan-grid {
+    grid-template-columns: 1fr;
+  }
+
   .shell {
     width: calc(100% - 18px);
   }
