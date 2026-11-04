@@ -459,6 +459,15 @@ async function handleApi(req, res, pathname) {
 }
 
 const server = http.createServer(async (req, res) => {
+  if (process.env.RAILWAY_SERVICE_NAME === 'www-redirect') {
+    res.writeHead(308, {
+      Location: `https://hng1.com${req.url || '/'}`,
+      'Cache-Control': 'no-store',
+    });
+    res.end();
+    return;
+  }
+
   const pathname = (req.url || '/').split('?')[0];
   if (pathname.startsWith('/api/')) {
     try {
