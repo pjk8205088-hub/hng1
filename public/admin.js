@@ -23,7 +23,10 @@ const PRODUCT_COPY_KO = new Map([
 const PRODUCT_COPY_PT = new Map([...PRODUCT_COPY_KO].map(([pt, ko]) => [ko, pt]));
 const LEGACY_PLAN_NAMES_KO = new Map([
   ['Pacote Turismo Coreia', 'H-1 워킹홀리데이 Basic (베이직)'],
+  ['Pacote Turismo', 'H-1 워킹홀리데이 Basic (베이직)'],
   ['Pacote Estudante Internacional', 'H-1 워킹홀리데이 Standard (스탠더드)'],
+  ['Pacote Estudante', 'H-1 워킹홀리데이 Standard (스탠더드)'],
+  ['Pacote All-In', 'H-1 워킹홀리데이 All-In (올인)'],
 ]);
 const productCopyForAdmin = (value) => PRODUCT_COPY_KO.get(value) || LEGACY_PLAN_NAMES_KO.get(value) || value || '';
 const productCopyForSite = (value) => PRODUCT_COPY_PT.get(value) || value || '';

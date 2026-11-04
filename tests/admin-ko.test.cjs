@@ -14,7 +14,8 @@ test('admin document uses Korean labels and fresh assets', () => {
   assert.match(html, /추천인 코드/);
   assert.match(html, /상품 설명/);
   assert.match(html, /admin\.js\?v=20261103-h1/);
-  assert.match(html, /H-1 워킹홀리데이 플랜/);
+  assert.match(html, /H-1 워킹홀리데이 플랜 3종/);
+  assert.match(html, /등록 상품 3개/);
   for (const type of ['basic', 'standard', 'allin']) {
     assert.match(html, new RegExp(`data-product-form="${type}"`));
     assert.match(html, new RegExp(`id="${type}Preview"`));
@@ -34,6 +35,7 @@ test('known Portuguese catalog content displays in Korean without changing the s
   assert.equal(catalog.productCopyForSite('새 상품'), '새 상품');
   assert.equal(catalog.productCopyForSite('H-1 워킹홀리데이 Basic (베이직)'), 'Plano Basic');
   assert.equal(catalog.productCopyForAdmin('Pacote Turismo Coreia'), 'H-1 워킹홀리데이 Basic (베이직)');
+  assert.equal(catalog.productCopyForAdmin('Pacote All-In'), 'H-1 워킹홀리데이 All-In (올인)');
 });
 
 test('arrival period follows an application into the order and customer views', () => {
