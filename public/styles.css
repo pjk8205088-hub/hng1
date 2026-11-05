@@ -229,6 +229,24 @@ summary:focus-visible {
   background: var(--accent-strong);
   box-shadow: 2px 2px 0 var(--ink);
 }
+.payment-cta {
+  position: relative;
+  min-height: 58px;
+  padding-right: 108px;
+  justify-content: flex-start;
+  text-align: left;
+}
+.payment-cta::after {
+  position: absolute;
+  right: 12px;
+  padding: 7px 9px;
+  border-radius: 999px;
+  color: var(--accent-strong);
+  background: #fff;
+  content: "PIX · CARD";
+  font: 800 9px var(--mono);
+  letter-spacing: 0.06em;
+}
 .button-ghost {
   border-color: rgba(21, 21, 21, 0.22);
   color: var(--ink);
