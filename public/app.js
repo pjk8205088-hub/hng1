@@ -147,7 +147,9 @@ const I18N = {
     "form.pix": "픽스",
     "form.card": "카드",
     "form.referral": "추천인 코드",
-    "form.submit": "안전하게 결제하기 ↗",
+    "form.selectedPlan": "선택한 플랜",
+    "form.paymentAmount": "결제금액",
+    "form.submit": "신청하기 + 결제하기 ↗",
     "form.whatsapp": "왓츠앱 상담",
     "form.note": "픽스 또는 카드 결제를 위해 dLocal 체크아웃으로 이동합니다.",
     "form.successTitle": "신청이 준비되었습니다.",
@@ -304,7 +306,9 @@ const I18N = {
     "form.pix": "PIX",
     "form.card": "Card",
     "form.referral": "Referral code",
-    "form.submit": "Continue to secure payment ↗",
+    "form.selectedPlan": "Selected plan",
+    "form.paymentAmount": "Payment amount",
+    "form.submit": "Apply + pay ↗",
     "form.whatsapp": "Ask on WhatsApp",
     "form.note": "You will continue to dLocal checkout to pay by PIX or card.",
     "form.successTitle": "Your application is ready.",
@@ -482,7 +486,9 @@ const I18N = {
     "form.pix": "PIX",
     "form.card": "Cartão",
     "form.referral": "Código de indicação",
-    "form.submit": "Ir para o pagamento seguro ↗",
+    "form.selectedPlan": "Plano selecionado",
+    "form.paymentAmount": "Valor do pagamento",
+    "form.submit": "Inscrever-se + pagar ↗",
     "form.whatsapp": "Falar no WhatsApp",
     "form.note": "Você será direcionado ao checkout da dLocal para pagar por PIX ou cartão.",
     "form.successTitle": "Sua inscrição está pronta.",
@@ -557,6 +563,17 @@ const CHECKOUT_STORAGE_KEY = 'hng-checkout-submissions-v1';
 const dialog = document.querySelector('#application-dialog');
 const form = document.querySelector('#application-form');
 const dialogSuccess = document.querySelector('.dialog-success');
+const checkoutPlanName = document.querySelector('#checkout-plan-name');
+const checkoutAmount = document.querySelector('#checkout-amount');
+
+function formatBrl(value) {
+  const locale = language === 'pt' ? 'pt-BR' : language === 'ko' ? 'ko-KR' : 'en-US';
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
 
 function applyLanguage(next) {
   language = normalizeLanguage(next) || 'pt';
@@ -635,6 +652,8 @@ document.querySelectorAll('[data-open-application]').forEach((button) => {
       const amountField = form.querySelector('input[name="amount"]');
       if (planField) planField.value = form.dataset.plan || '';
       if (amountField) amountField.value = form.dataset.amount || '';
+      if (checkoutPlanName) checkoutPlanName.textContent = button.closest('.plan-card')?.querySelector('h3')?.textContent || button.dataset.planLabel || form.dataset.plan || 'Plano H&G';
+      if (checkoutAmount) checkoutAmount.textContent = formatBrl(form.dataset.amount);
     }
     dialog?.showModal();
   });
