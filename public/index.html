@@ -461,6 +461,14 @@
       <p data-i18n="form.successBody">Fale com o responsável pelo WhatsApp para receber as instruções de pagamento rapidamente.</p>
       <a class="button button-dark" href="https://wa.me/821055613505" target="_blank" rel="noreferrer" data-i18n="form.successCta">Abrir WhatsApp ↗</a>
     </div>
+
+    <div class="pix-payment-result" id="pix-payment-result" hidden>
+      <strong>PIX 결제 QR코드</strong>
+      <img id="pix-qr-image" alt="PIX 결제 QR코드">
+      <button class="button button-primary" id="pix-copy-code" type="button">PIX 코드 복사</button>
+      <code id="pix-copy-value"></code>
+      <p>브라질 은행 앱에서 QR코드를 스캔하거나 코드를 붙여 넣어 결제하세요.</p>
+    </div>
   </dialog>
 </body>
 </html>

@@ -2,6 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const QRCode = require('qrcode');
 
 const publicDir = path.join(__dirname, 'public');
 const dataDir = process.env.ADMIN_DATA_DIR || path.join(__dirname, 'data');
@@ -409,12 +410,15 @@ async function handleApi(req, res, pathname) {
       data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'ebanx', providerPaymentId: String(payment.payment?.hash || ''), status: 'pending' };
       saveData();
     }
+    const qrCodeValue = payment.payment?.pix?.qr_code_value || '';
+    const qrCodeImage = qrCodeValue ? await QRCode.toDataURL(qrCodeValue, { margin: 1, width: 320 }) : '';
     return sendJson(res, 201, {
       ok: true,
       provider: 'ebanx',
       status: payment.payment?.status || 'PE',
       checkoutUrl: payment.payment?.redirect_url || payment.redirect_url || '',
-      qrCodeValue: payment.payment?.pix?.qr_code_value || '',
+      qrCodeValue,
+      qrCodeImage,
       qrCodeUrl: payment.payment?.qrcode_url || '',
       paymentHash: payment.payment?.hash || '',
     });

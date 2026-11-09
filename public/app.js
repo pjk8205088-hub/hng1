@@ -746,9 +746,14 @@ form?.addEventListener('submit', async (event) => {
         return;
       }
       if (payment.qrCodeValue) {
-        const copy = async () => navigator.clipboard?.writeText(payment.qrCodeValue);
-        await copy();
-        window.alert(`PIX 결제 코드가 생성되었습니다.\n\n코드가 클립보드에 복사되었습니다.`);
+        const result = document.querySelector('#pix-payment-result');
+        const image = document.querySelector('#pix-qr-image');
+        const value = document.querySelector('#pix-copy-value');
+        const copyButton = document.querySelector('#pix-copy-code');
+        if (result) result.hidden = false;
+        if (image) image.src = payment.qrCodeImage || payment.qrCodeUrl || '';
+        if (value) value.textContent = payment.qrCodeValue;
+        if (copyButton) copyButton.onclick = () => navigator.clipboard?.writeText(payment.qrCodeValue);
         return;
       }
       throw new Error('O provedor não retornou a página de pagamento.');

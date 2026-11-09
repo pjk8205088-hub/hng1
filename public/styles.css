@@ -1033,6 +1033,16 @@ summary:focus-visible {
   font-size: 13px;
   line-height: 1.7;
 }
+.pix-payment-result {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(21, 21, 21, 0.12);
+}
+.pix-payment-result img { width: 220px; height: 220px; image-rendering: pixelated; }
+.pix-payment-result code { max-width: 100%; overflow-wrap: anywhere; color: var(--muted); font-size: 10px; }
 
 @media (max-width: 1280px) {
   .plan-grid {
