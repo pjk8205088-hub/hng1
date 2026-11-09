@@ -708,13 +708,37 @@ form?.addEventListener('submit', async (event) => {
       }),
     });
     if (checkoutResponse.ok) {
-      const paymentResponse = await fetch(`/api/payments/dlocal/${checkoutRecord.paymentMethod}`, {
+      const providerResponse = await fetch('/api/payment-provider');
+      const providerInfo = await providerResponse.json();
+      if (!providerInfo.enabled) {
+        throw new Error('현재 결제 PG가 아직 활성화되지 않았습니다. 관리자에게 문의해 주세요.');
+      }
+      const providerPath = providerInfo.provider === 'hecto'
+        ? '/api/payments/hecto/card'
+        : `/api/payments/dlocal/${checkoutRecord.paymentMethod}`;
+      const paymentResponse = await fetch(providerPath, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...data, ...checkoutRecord, orderId: checkoutRecord.id }),
       });
       const payment = await paymentResponse.json();
       if (!paymentResponse.ok) throw new Error(payment.error || 'Não foi possível abrir o pagamento.');
+      if (payment.formAction && payment.fields) {
+        const paymentForm = document.createElement('form');
+        paymentForm.method = 'POST';
+        paymentForm.action = payment.formAction;
+        paymentForm.style.display = 'none';
+        Object.entries(payment.fields).forEach(([name, value]) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = name;
+          input.value = String(value ?? '');
+          paymentForm.appendChild(input);
+        });
+        document.body.appendChild(paymentForm);
+        paymentForm.submit();
+        return;
+      }
       if (payment.checkoutUrl) {
         window.location.assign(payment.checkoutUrl);
         return;

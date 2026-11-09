@@ -183,6 +183,34 @@ function dLocalApiBase() {
   return (process.env.DLOCAL_API_BASE || 'https://api.dlocal.com').replace(/\/$/, '');
 }
 
+function hectoConfigured() {
+  return Boolean(process.env.HECTO_MCHT_ID && process.env.HECTO_LICENSE_KEY && process.env.HECTO_ENCRYPTION_KEY);
+}
+
+function hectoEnabled() {
+  return process.env.HECTO_ENABLED === 'true' && hectoConfigured();
+}
+
+function hectoApiBase() {
+  return (process.env.HECTO_API_BASE || 'https://tbnpg.settlebank.co.kr').replace(/\/$/, '');
+}
+
+function hectoEncrypt(value) {
+  const key = Buffer.from(process.env.HECTO_ENCRYPTION_KEY, 'utf8');
+  if (key.length !== 32) throw new Error('HECTO_ENCRYPTION_KEY는 UTF-8 32바이트 AES-256 키여야 합니다.');
+  const cipher = crypto.createCipheriv('aes-256-ecb', key, null);
+  return Buffer.concat([cipher.update(String(value ?? ''), 'utf8'), cipher.final()]).toString('base64');
+}
+
+function hectoHash(...parts) {
+  return crypto.createHash('sha256').update(parts.join(''), 'utf8').digest('hex');
+}
+
+function hectoRedirectUrl(pathname) {
+  const base = (process.env.PUBLIC_APP_URL || 'https://www.hng1.com').replace(/\/$/, '');
+  return `${base}${pathname}`;
+}
+
 function dLocalSignature(date, requestBody) {
   return crypto.createHmac('sha256', process.env.DLOCAL_SECRET_KEY)
     .update(`${process.env.DLOCAL_X_LOGIN}${date}${requestBody}`)
@@ -326,6 +354,11 @@ async function handleApi(req, res, pathname) {
     return sendJson(res, 201, { ok: true, orderId: order.id });
   }
 
+  if (pathname === '/api/payment-provider' && req.method === 'GET') {
+    const provider = hectoEnabled() ? 'hecto' : dLocalPaymentsEnabled() ? 'dlocal' : 'unavailable';
+    return sendJson(res, 200, { provider, enabled: provider !== 'unavailable' });
+  }
+
   if ((pathname === '/api/payments/dlocal/pix' || pathname === '/api/payments/dlocal/card') && req.method === 'POST') {
     if (!dLocalPaymentsEnabled()) return sendJson(res, 503, { error: 'O pagamento online ainda não está disponível. Entre em contato pelo WhatsApp.' });
     const body = await readJson(req, 64 * 1024);
@@ -358,6 +391,106 @@ async function handleApi(req, res, pathname) {
       saveData();
     }
     return sendJson(res, 201, { ok: true, provider: 'dlocal', paymentId: payment.id, status: payment.status, checkoutUrl: payment.redirect_url || payment.redirect_URL || '' });
+  }
+
+  if (pathname === '/api/payments/hecto/card' && req.method === 'POST') {
+    if (!hectoEnabled()) {
+      return sendJson(res, 503, { error: 'Hecto 결제는 계약 후 발급되는 상점 ID와 키를 등록한 뒤 활성화할 수 있습니다.' });
+    }
+    const body = await readJson(req, 64 * 1024);
+    const selectedPlan = resolvePlan(body.plan);
+    if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
+    if (body.paymentMethod && body.paymentMethod !== 'card') {
+      return sendJson(res, 400, { error: '현재 Hecto 연동은 공식 카드 결제창 기준입니다. PIX는 Hecto 계약 및 별도 지원 여부 확인 후 연결할 수 있습니다.' });
+    }
+    const orderId = cleanText(body.orderId, 100) || `CHK-${Date.now()}`;
+    const now = new Date();
+    const trdDt = now.toISOString().slice(0, 10).replace(/-/g, '');
+    const trdTm = now.toISOString().slice(11, 19).replace(/:/g, '');
+    const amount = String(selectedPlan.amount);
+    const fields = {
+      mchtId: process.env.HECTO_MCHT_ID,
+      method: 'card',
+      trdDt,
+      trdTm,
+      mchtTrdNo: orderId,
+      mchtName: process.env.HECTO_MCHT_NAME || 'H&G Agency',
+      mchtEName: process.env.HECTO_MCHT_ENAME || 'H&G Agency',
+      pmtPrdtNm: selectedPlan.name,
+      trdAmt: hectoEncrypt(amount),
+      notiUrl: process.env.HECTO_NOTI_URL || hectoRedirectUrl('/api/webhooks/hecto'),
+      nextUrl: process.env.HECTO_NEXT_URL || hectoRedirectUrl('/api/payments/hecto/return'),
+      cancUrl: process.env.HECTO_CANC_URL || hectoRedirectUrl('/api/payments/hecto/cancel'),
+      pktHash: hectoHash(process.env.HECTO_MCHT_ID, 'card', orderId, trdDt, trdTm, amount, process.env.HECTO_LICENSE_KEY),
+      mchtCustNm: hectoEncrypt(cleanText(body.customer || body.name, 30) || 'Cliente'),
+      email: hectoEncrypt(cleanText(body.email, 60)),
+      mchtCustId: hectoEncrypt(cleanText(body.email, 50) || orderId),
+      instmtMon: '00',
+      taxTypeCd: 'N',
+    };
+    const orderIndex = data.orders.findIndex((item) => item.id === orderId);
+    if (orderIndex >= 0) {
+      data.orders[orderIndex] = {
+        ...data.orders[orderIndex],
+        provider: 'hecto',
+        providerMerchantOrderId: orderId,
+        status: 'pending',
+      };
+      saveData();
+    }
+    return sendJson(res, 201, {
+      ok: true,
+      provider: 'hecto',
+      formAction: `${hectoApiBase()}/card/main.do`,
+      fields,
+    });
+  }
+
+  if ((pathname === '/api/payments/hecto/return' || pathname === '/api/payments/hecto/cancel') && req.method === 'GET') {
+    const query = new URL(req.url || '/', 'http://localhost').searchParams;
+    const orderId = cleanText(query.get('mchtTrdNo'), 100);
+    const orderIndex = data.orders.findIndex((item) => item.id === orderId);
+    if (orderIndex >= 0) {
+      const success = query.get('outStatCd') === '0021';
+      data.orders[orderIndex] = {
+        ...data.orders[orderIndex],
+        provider: 'hecto',
+        providerTransactionId: cleanText(query.get('trdNo'), 80),
+        status: success ? 'paid' : 'payment_failed',
+        paymentResultCode: cleanText(query.get('outRsltCd'), 20),
+        paymentResultMessage: cleanText(query.get('outRsltMsg'), 240),
+      };
+      saveData();
+    }
+    res.writeHead(303, { Location: `/?payment=${query.get('outStatCd') === '0021' ? 'success' : 'failed'}` });
+    res.end();
+    return;
+  }
+
+  if (pathname === '/api/webhooks/hecto' && req.method === 'POST') {
+    if (!hectoConfigured()) return sendJson(res, 503, { error: 'Hecto 자격증명이 설정되지 않았습니다.' });
+    const body = await readJson(req, 64 * 1024);
+    const trdDtm = cleanText(body.trdDtm, 14);
+    const expected = hectoHash(body.outStatCd, trdDtm.slice(0, 8), trdDtm.slice(8, 14), body.mchtId, body.mchtTrdNo, body.trdAmt, process.env.HECTO_LICENSE_KEY);
+    const receivedHash = String(body.pktHash || '');
+    if (receivedHash.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(receivedHash), Buffer.from(expected))) {
+      return sendJson(res, 401, { error: 'Invalid Hecto notification hash.' });
+    }
+    const orderIndex = data.orders.findIndex((item) => item.id === String(body.mchtTrdNo));
+    if (orderIndex >= 0) {
+      data.orders[orderIndex] = {
+        ...data.orders[orderIndex],
+        provider: 'hecto',
+        providerTransactionId: cleanText(body.trdNo, 80),
+        status: body.outStatCd === '0021' ? 'paid' : 'payment_failed',
+        paymentResultCode: cleanText(body.outRsltCd, 20),
+        paymentResultMessage: cleanText(body.outRsltMsg, 240),
+      };
+      saveData();
+    }
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('OK');
+    return;
   }
 
   if (pathname === '/api/webhooks/dlocal/refund' && (req.method === 'POST' || req.method === 'GET')) {
