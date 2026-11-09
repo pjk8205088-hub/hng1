@@ -713,7 +713,9 @@ form?.addEventListener('submit', async (event) => {
       if (!providerInfo.enabled) {
         throw new Error('현재 결제 PG가 아직 활성화되지 않았습니다. 관리자에게 문의해 주세요.');
       }
-      const providerPath = providerInfo.provider === 'hecto'
+      const providerPath = providerInfo.provider === 'ebanx'
+        ? '/api/payments/ebanx/pix'
+        : providerInfo.provider === 'hecto'
         ? '/api/payments/hecto/card'
         : `/api/payments/dlocal/${checkoutRecord.paymentMethod}`;
       const paymentResponse = await fetch(providerPath, {
@@ -741,6 +743,12 @@ form?.addEventListener('submit', async (event) => {
       }
       if (payment.checkoutUrl) {
         window.location.assign(payment.checkoutUrl);
+        return;
+      }
+      if (payment.qrCodeValue) {
+        const copy = async () => navigator.clipboard?.writeText(payment.qrCodeValue);
+        await copy();
+        window.alert(`PIX 결제 코드가 생성되었습니다.\n\n코드가 클립보드에 복사되었습니다.`);
         return;
       }
       throw new Error('O provedor não retornou a página de pagamento.');

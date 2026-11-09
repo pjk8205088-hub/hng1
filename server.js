@@ -211,6 +211,31 @@ function hectoRedirectUrl(pathname) {
   return `${base}${pathname}`;
 }
 
+function ebanxConfigured() {
+  return Boolean(process.env.EBANX_INTEGRATION_KEY);
+}
+
+function ebanxEnabled() {
+  return process.env.EBANX_ENABLED === 'true' && ebanxConfigured();
+}
+
+function ebanxApiBase() {
+  return (process.env.EBANX_API_BASE || 'https://sandbox.ebanxpay.com').replace(/\/$/, '');
+}
+
+async function ebanxRequest(pathname, payload) {
+  const response = await fetch(`${ebanxApiBase()}${pathname}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok || body.status === 'ERROR') {
+    throw new Error(body.status_description || body.error || `EBANX request failed (${response.status}).`);
+  }
+  return body;
+}
+
 function dLocalSignature(date, requestBody) {
   return crypto.createHmac('sha256', process.env.DLOCAL_SECRET_KEY)
     .update(`${process.env.DLOCAL_X_LOGIN}${date}${requestBody}`)
@@ -355,8 +380,55 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === '/api/payment-provider' && req.method === 'GET') {
-    const provider = hectoEnabled() ? 'hecto' : dLocalPaymentsEnabled() ? 'dlocal' : 'unavailable';
+    const provider = ebanxEnabled() ? 'ebanx' : hectoEnabled() ? 'hecto' : dLocalPaymentsEnabled() ? 'dlocal' : 'unavailable';
     return sendJson(res, 200, { provider, enabled: provider !== 'unavailable' });
+  }
+
+  if (pathname === '/api/payments/ebanx/pix' && req.method === 'POST') {
+    if (!ebanxEnabled()) return sendJson(res, 503, { error: 'EBANX 결제 자격증명이 등록되지 않았습니다.' });
+    const body = await readJson(req, 64 * 1024);
+    const selectedPlan = resolvePlan(body.plan);
+    if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
+    const orderId = cleanText(body.orderId, 80) || `CHK-${Date.now()}`;
+    const payment = await ebanxRequest('/ws/direct', {
+      integration_key: process.env.EBANX_INTEGRATION_KEY,
+      payment: {
+        payment_type_code: 'pix',
+        merchant_payment_code: orderId,
+        currency_code: 'BRL',
+        amount_total: selectedPlan.amount,
+        country: 'br',
+        name: cleanText(body.customer || body.name, 120) || 'Cliente',
+        email: cleanText(body.email, 160),
+        document: cleanText(body.document, 32).replace(/\D/g, ''),
+        notification_url: process.env.EBANX_NOTIFICATION_URL || 'https://www.hng1.com/api/webhooks/ebanx',
+      },
+    });
+    const orderIndex = data.orders.findIndex((item) => item.id === orderId);
+    if (orderIndex >= 0) {
+      data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'ebanx', providerPaymentId: String(payment.payment?.hash || ''), status: 'pending' };
+      saveData();
+    }
+    return sendJson(res, 201, {
+      ok: true,
+      provider: 'ebanx',
+      status: payment.payment?.status || 'PE',
+      checkoutUrl: payment.payment?.redirect_url || payment.redirect_url || '',
+      qrCodeValue: payment.payment?.pix?.qr_code_value || '',
+      qrCodeUrl: payment.payment?.qrcode_url || '',
+      paymentHash: payment.payment?.hash || '',
+    });
+  }
+
+  if (pathname === '/api/webhooks/ebanx' && req.method === 'POST') {
+    const body = await readJson(req, 64 * 1024);
+    const payment = body.payment || body;
+    const orderIndex = data.orders.findIndex((item) => item.id === String(payment.merchant_payment_code || ''));
+    if (orderIndex >= 0) {
+      data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'ebanx', providerPaymentId: String(payment.hash || ''), status: payment.status === 'CO' ? 'paid' : payment.status === 'CA' ? 'payment_failed' : 'pending' };
+      saveData();
+    }
+    return sendJson(res, 200, { ok: true });
   }
 
   if ((pathname === '/api/payments/dlocal/pix' || pathname === '/api/payments/dlocal/card') && req.method === 'POST') {
