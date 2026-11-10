@@ -715,6 +715,8 @@ form?.addEventListener('submit', async (event) => {
       }
       const providerPath = providerInfo.provider === 'ebanx'
         ? '/api/payments/ebanx/pix'
+        : providerInfo.provider === 'dlocalgo'
+        ? '/api/payments/dlocalgo'
         : providerInfo.provider === 'hecto'
         ? '/api/payments/hecto/card'
         : `/api/payments/dlocal/${checkoutRecord.paymentMethod}`;

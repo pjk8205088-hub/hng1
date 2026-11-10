@@ -184,6 +184,21 @@ function dLocalApiBase() {
   return (process.env.DLOCAL_API_BASE || 'https://api.dlocal.com').replace(/\/$/, '');
 }
 
+function dLocalGoConfigured() {
+  return Boolean(process.env.DLOCALGO_API_KEY && process.env.DLOCALGO_API_SECRET);
+}
+function dLocalGoEnabled() { return process.env.DLOCALGO_ENABLED === 'true' && dLocalGoConfigured(); }
+function dLocalGoApiBase() { return (process.env.DLOCALGO_API_BASE || 'https://api-sbx.dlocalgo.com').replace(/\/$/, ''); }
+function dLocalGoSignature(rawBody) { return crypto.createHmac('sha256', process.env.DLOCALGO_API_SECRET).update(process.env.DLOCALGO_API_KEY + rawBody, 'utf8').digest('hex'); }
+async function dLocalGoRequest(pathname, method = 'GET', payload) {
+  const body = payload === undefined ? undefined : JSON.stringify(payload);
+  const response = await fetch(dLocalGoApiBase() + pathname, { method, headers: { Authorization: 'Bearer ' + process.env.DLOCALGO_API_KEY + ':' + process.env.DLOCALGO_API_SECRET, Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body } : {}) });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.message || result.error || ('dLocal Go request failed (' + response.status + ').'));
+  return result;
+}
+function dLocalGoOrderStatus(status) { return status === 'PAID' ? 'paid' : ['REJECTED', 'CANCELLED', 'EXPIRED'].includes(status) ? 'payment_failed' : 'pending'; }
+
 function hectoConfigured() {
   return Boolean(process.env.HECTO_MCHT_ID && process.env.HECTO_LICENSE_KEY && process.env.HECTO_ENCRYPTION_KEY);
 }
@@ -401,8 +416,32 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === '/api/payment-provider' && req.method === 'GET') {
-    const provider = ebanxEnabled() ? 'ebanx' : hectoEnabled() ? 'hecto' : dLocalPaymentsEnabled() ? 'dlocal' : 'unavailable';
+    const provider = ebanxEnabled() ? 'ebanx' : dLocalGoEnabled() ? 'dlocalgo' : hectoEnabled() ? 'hecto' : dLocalPaymentsEnabled() ? 'dlocal' : 'unavailable';
     return sendJson(res, 200, { provider, enabled: provider !== 'unavailable' });
+  }
+
+  if (pathname === '/api/payments/dlocalgo' && req.method === 'POST') {
+    if (!dLocalGoEnabled()) return sendJson(res, 503, { error: 'dLocal Go credentials are not configured.' });
+    const body = await readJson(req, 64 * 1024); const selectedPlan = resolvePlan(body.plan);
+    if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
+    const document = cleanText(body.document, 32).replace(/\D/g, '');
+    if (!validCpf(document)) return sendJson(res, 400, { error: 'Informe um CPF brasileiro válido com 11 dígitos.' });
+    const orderId = (cleanText(body.orderId, 80) || ('CHK-' + Date.now())).slice(0, 128);
+    const isCard = body.paymentMethod === 'card';
+    const payment = await dLocalGoRequest('/v1/payments', 'POST', { country: 'BR', currency: 'BRL', amount: selectedPlan.amount, order_id: orderId, description: selectedPlan.name, payment_type: isCard ? 'CREDIT_CARD' : 'BANK_TRANSFER', payer: { name: cleanText(body.customer || body.name, 100) || 'Cliente', email: cleanText(body.email, 100), phone: cleanText(body.phone, 100), document_type: 'CPF', document }, success_url: process.env.DLOCALGO_SUCCESS_URL || 'https://hng1.com/?payment=success', back_url: process.env.DLOCALGO_BACK_URL || 'https://hng1.com/?payment=return', notification_url: process.env.DLOCALGO_NOTIFICATION_URL || 'https://hng1.com/api/webhooks/dlocalgo' });
+    const orderIndex = data.orders.findIndex((item) => item.id === orderId);
+    if (orderIndex >= 0) { data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'dlocalgo', providerPaymentId: String(payment.id || ''), status: dLocalGoOrderStatus(payment.status) }; saveData(); }
+    return sendJson(res, 201, { ok: true, provider: 'dlocalgo', paymentId: payment.id, status: payment.status, checkoutUrl: payment.redirect_url || '' });
+  }
+  if (pathname === '/api/webhooks/dlocalgo' && req.method === 'POST') {
+    if (!dLocalGoEnabled()) return sendJson(res, 503, { error: 'dLocal Go disabled.' });
+    const raw = await readRawBody(req); const auth = String(req.headers.authorization || ''); const received = auth.match(/Signature:\s*([a-f0-9]+)/i)?.[1] || ''; const expected = dLocalGoSignature(raw);
+    if (!received || received.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(received, 'hex'), Buffer.from(expected, 'hex'))) return sendJson(res, 401, { error: 'Invalid dLocal Go signature.' });
+    let notice; try { notice = JSON.parse(raw); } catch { return sendJson(res, 400, { error: 'Invalid notification.' }); }
+    if (!notice.payment_id) return sendJson(res, 400, { error: 'Missing payment_id.' });
+    const payment = await dLocalGoRequest('/v1/payments/' + encodeURIComponent(notice.payment_id)); const orderIndex = data.orders.findIndex((item) => item.providerPaymentId === String(payment.id) || item.id === String(payment.order_id));
+    if (orderIndex >= 0) { data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'dlocalgo', providerPaymentId: String(payment.id), status: dLocalGoOrderStatus(payment.status) }; saveData(); }
+    return sendJson(res, 200, { ok: true });
   }
 
   if (pathname === '/api/payments/ebanx/pix' && req.method === 'POST') {
