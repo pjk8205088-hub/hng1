@@ -237,6 +237,26 @@ async function ebanxRequest(pathname, payload) {
   return body;
 }
 
+function readRawBody(req, maxBytes = 64 * 1024) {
+  return new Promise((resolve, reject) => {
+    let raw = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk) => {
+      raw += chunk;
+      if (Buffer.byteLength(raw, 'utf8') > maxBytes) {
+        reject(new Error('Payload too large'));
+        req.destroy();
+      }
+    });
+    req.on('end', () => resolve(raw));
+    req.on('error', reject);
+  });
+}
+
+function ebanxOrderStatus(status) {
+  return status === 'CO' ? 'paid' : status === 'CA' ? 'payment_failed' : 'pending';
+}
+
 function dLocalSignature(date, requestBody) {
   return crypto.createHmac('sha256', process.env.DLOCAL_SECRET_KEY)
     .update(`${process.env.DLOCAL_X_LOGIN}${date}${requestBody}`)
@@ -390,7 +410,12 @@ async function handleApi(req, res, pathname) {
     const body = await readJson(req, 64 * 1024);
     const selectedPlan = resolvePlan(body.plan);
     if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
-    const orderId = cleanText(body.orderId, 80) || `CHK-${Date.now()}`;
+    const document = cleanText(body.document, 32).replace(/\D/g, '');
+    if (!validCpf(document)) return sendJson(res, 400, { error: 'Informe um CPF brasileiro válido com 11 dígitos.' });
+    const email = cleanText(body.email, 160);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return sendJson(res, 400, { error: 'Informe um e-mail válido.' });
+    const orderId = (cleanText(body.orderId, 80) || `CHK-${Date.now()}`).slice(0, 40);
+    const phone = cleanText(body.phone || body.whatsapp, 32).replace(/\D/g, '');
     const payment = await ebanxRequest('/ws/direct', {
       integration_key: process.env.EBANX_INTEGRATION_KEY,
       payment: {
@@ -400,9 +425,10 @@ async function handleApi(req, res, pathname) {
         amount_total: selectedPlan.amount,
         country: 'br',
         name: cleanText(body.customer || body.name, 120) || 'Cliente',
-        email: cleanText(body.email, 160),
-        document: cleanText(body.document, 32).replace(/\D/g, ''),
-        notification_url: process.env.EBANX_NOTIFICATION_URL || 'https://www.hng1.com/api/webhooks/ebanx',
+        email,
+        document,
+        ...(phone ? { phone_number: phone } : {}),
+        notification_url: process.env.EBANX_NOTIFICATION_URL || 'https://hng1.com/api/webhooks/ebanx',
       },
     });
     const orderIndex = data.orders.findIndex((item) => item.id === orderId);
@@ -425,16 +451,31 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === '/api/webhooks/ebanx' && req.method === 'POST') {
-    const body = await readJson(req, 64 * 1024);
-    const payment = body.payment || body;
-    const orderIndex = data.orders.findIndex((item) => item.id === String(payment.merchant_payment_code || ''));
-    if (orderIndex >= 0) {
-      data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'ebanx', providerPaymentId: String(payment.hash || ''), status: payment.status === 'CO' ? 'paid' : payment.status === 'CA' ? 'payment_failed' : 'pending' };
-      saveData();
+    if (!ebanxEnabled()) return sendJson(res, 503, { error: 'EBANX disabled.' });
+    const raw = await readRawBody(req);
+    let hashes = [];
+    try {
+      const parsed = raw.trim().startsWith('{') ? JSON.parse(raw) : Object.fromEntries(new URLSearchParams(raw));
+      hashes = String(parsed.hash_codes || parsed.hash || '').split(',').map((item) => item.trim()).filter((item) => /^[a-f0-9]{48}$/i.test(item));
+    } catch {
+      return sendJson(res, 400, { error: 'Invalid notification.' });
+    }
+    // Never trust the notification body: confirm each payment status directly with EBANX.
+    for (const hash of hashes.slice(0, 20)) {
+      try {
+        const result = await ebanxRequest('/ws/query', { integration_key: process.env.EBANX_INTEGRATION_KEY, hash });
+        const payment = result.payment || {};
+        const orderIndex = data.orders.findIndex((item) => item.id === String(payment.merchant_payment_code || '') || item.providerPaymentId === hash);
+        if (orderIndex >= 0) {
+          data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'ebanx', providerPaymentId: hash, status: ebanxOrderStatus(payment.status) };
+          saveData();
+        }
+      } catch (error) {
+        console.error('EBANX query failed', error.message);
+      }
     }
     return sendJson(res, 200, { ok: true });
   }
-
   if ((pathname === '/api/payments/dlocal/pix' || pathname === '/api/payments/dlocal/card') && req.method === 'POST') {
     if (!dLocalPaymentsEnabled()) return sendJson(res, 503, { error: 'O pagamento online ainda não está disponível. Entre em contato pelo WhatsApp.' });
     const body = await readJson(req, 64 * 1024);
