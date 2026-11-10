@@ -179,7 +179,7 @@ async function dLocalGoRequest(pathname, method = 'GET', payload) {
 function dLocalGoOrderStatus(status) { return status === 'PAID' ? 'paid' : ['REJECTED', 'CANCELLED', 'EXPIRED'].includes(status) ? 'payment_failed' : 'pending'; }
 
 function ebanxConfigured() {
-  return Boolean(process.env.EBANX_INTEGRATION_KEY);
+  return Boolean((process.env.EBANX_JWS_KID && process.env.EBANX_JWS_PRIVATE_KEY) || process.env.EBANX_INTEGRATION_KEY);
 }
 
 function ebanxEnabled() {
@@ -190,16 +190,18 @@ function ebanxApiBase() {
   return (process.env.EBANX_API_BASE || 'https://sandbox.ebanxpay.com').replace(/\/$/, '');
 }
 
+function ebanxJwsSignature(rawBody) {
+  const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: process.env.EBANX_JWS_KID, b64: false, crit: ['b64'] })).toString('base64url');
+  const signature = crypto.sign('RSA-SHA256', Buffer.from(header + '.' + rawBody, 'utf8'), process.env.EBANX_JWS_PRIVATE_KEY);
+  return header + '..' + signature.toString('base64url');
+}
+
 async function ebanxRequest(pathname, payload) {
-  const response = await fetch(`${ebanxApiBase()}${pathname}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  const rawBody = JSON.stringify(payload);
+  const auth = process.env.EBANX_JWS_KID && process.env.EBANX_JWS_PRIVATE_KEY ? { 'X-JWS-Signature': ebanxJwsSignature(rawBody) } : {};
+  const response = await fetch(ebanxApiBase() + pathname, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...auth }, body: rawBody });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok || body.status === 'ERROR') {
-    throw new Error(body.status_description || body.error || `EBANX request failed (${response.status}).`);
-  }
+  if (!response.ok || body.status === 'ERROR') throw new Error(body.status_description || body.error || ('EBANX request failed (' + response.status + ').'));
   return body;
 }
 
@@ -351,7 +353,7 @@ async function handleApi(req, res, pathname) {
     const orderId = (cleanText(body.orderId, 80) || `CHK-${Date.now()}`).slice(0, 40);
     const phone = cleanText(body.phone || body.whatsapp, 32).replace(/\D/g, '');
     const payment = await ebanxRequest('/ws/direct', {
-      integration_key: process.env.EBANX_INTEGRATION_KEY,
+      ...(process.env.EBANX_JWS_KID && process.env.EBANX_JWS_PRIVATE_KEY ? {} : { integration_key: process.env.EBANX_INTEGRATION_KEY }),
       payment: {
         payment_type_code: 'pix',
         merchant_payment_code: orderId,
@@ -397,7 +399,7 @@ async function handleApi(req, res, pathname) {
     // Never trust the notification body: confirm each payment status directly with EBANX.
     for (const hash of hashes.slice(0, 20)) {
       try {
-        const result = await ebanxRequest('/ws/query', { integration_key: process.env.EBANX_INTEGRATION_KEY, hash });
+        const result = await ebanxRequest('/ws/query', { ...(process.env.EBANX_JWS_KID && process.env.EBANX_JWS_PRIVATE_KEY ? {} : { integration_key: process.env.EBANX_INTEGRATION_KEY }), hash });
         const payment = result.payment || {};
         const orderIndex = data.orders.findIndex((item) => item.id === String(payment.merchant_payment_code || '') || item.providerPaymentId === hash);
         if (orderIndex >= 0) {
