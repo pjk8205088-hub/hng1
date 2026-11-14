@@ -713,7 +713,9 @@ form?.addEventListener('submit', async (event) => {
       if (!providerInfo.enabled) {
         throw new Error('현재 결제 PG가 아직 활성화되지 않았습니다. 관리자에게 문의해 주세요.');
       }
-      const providerPath = providerInfo.provider === 'ebanx'
+      const providerPath = providerInfo.provider === 'payverse'
+        ? '/api/payments/payverse'
+        : providerInfo.provider === 'ebanx'
         ? '/api/payments/ebanx/pix'
         : '/api/payments/dlocalgo';
       const paymentResponse = await fetch(providerPath, {
@@ -723,6 +725,25 @@ form?.addEventListener('submit', async (event) => {
       });
       const payment = await paymentResponse.json();
       if (!paymentResponse.ok) throw new Error(payment.error || 'Não foi possível abrir o pagamento.');
+      if (payment.payverse) {
+        await new Promise((resolve, reject) => {
+          const existingScript = document.querySelector(`script[src="${payment.payverse.sdkUrl}"]`);
+          const start = () => {
+            if (!window.payVerse?.requestUI) return reject(new Error('PayVerse SDK를 불러오지 못했습니다.'));
+            window.payVerse.requestUI(payment.payverse, (result) => {
+              if (result?.resultStatus === 'SUCCESS' || result?.resultStatus === 'PROCESSING' || result?.resultStatus === 'PENDING') resolve(result);
+              else reject(new Error(result?.resultMessage || 'PayVerse 결제가 완료되지 않았습니다.'));
+            });
+          };
+          if (existingScript) return start();
+          const script = document.createElement('script');
+          script.src = payment.payverse.sdkUrl;
+          script.onload = start;
+          script.onerror = () => reject(new Error('PayVerse SDK를 불러오지 못했습니다.'));
+          document.head.appendChild(script);
+        });
+        return;
+      }
       if (payment.formAction && payment.fields) {
         const paymentForm = document.createElement('form');
         paymentForm.method = 'POST';

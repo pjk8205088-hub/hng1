@@ -236,6 +236,27 @@ function dLocalGoApiBase() {
   return (process.env.DLOCAL_GO_API_BASE || (mode === 'live' ? 'https://api.dlocalgo.com' : 'https://api-sbx.dlocalgo.com')).replace(/\/$/, '');
 }
 
+function payverseConfigured() {
+  return Boolean(process.env.PAYVERSE_MID && process.env.PAYVERSE_CLIENT_KEY && process.env.PAYVERSE_SECRET_KEY);
+}
+
+function payverseEnabled() {
+  return process.env.PAYVERSE_ENABLED === 'true' && payverseConfigured();
+}
+
+function payverseSdkUrl() {
+  const mode = process.env.PAYVERSE_MODE || 'sandbox';
+  return process.env.PAYVERSE_SDK_URL || (mode === 'live'
+    ? 'https://ui.payverseglobal.com/js/payments.js'
+    : 'https://ui-snd.payverseglobal.com/js/payments.js');
+}
+
+function payverseSign(orderId, amount, reqDate) {
+  const normalizedAmount = String(Number(amount));
+  const plainText = `||${process.env.PAYVERSE_SECRET_KEY}||${process.env.PAYVERSE_MID}||${orderId}||${normalizedAmount}||${reqDate}||`;
+  return crypto.createHash('sha512').update(plainText, 'utf8').digest('hex');
+}
+
 function ebanxJwsSignature(rawBody) {
   const header = Buffer.from(JSON.stringify({ alg: 'RS256', kid: process.env.EBANX_JWS_KID, b64: false, crit: ['b64'] })).toString('base64url');
   const signature = crypto.sign('RSA-SHA256', Buffer.from(header + '.' + rawBody, 'utf8'), process.env.EBANX_JWS_PRIVATE_KEY);
@@ -415,6 +436,7 @@ async function handleApi(req, res, pathname) {
 
   if (pathname === '/api/payment-provider' && req.method === 'GET') {
     const providers = [
+      ...(payverseEnabled() ? [{ id: 'payverse', label: 'PayVerse', methods: ['card', 'wallet'] }] : []),
       ...(ebanxEnabled() ? [{ id: 'ebanx', label: 'EBANX', methods: ['pix'] }] : []),
       ...(dLocalGoEnabled() ? [{ id: 'dlocal-go', label: 'dLocal Go', methods: ['pix', 'card'] }] : []),
       ...(dLocalPaymentsEnabled() ? [{ id: 'dlocal', label: 'dLocal API', methods: ['pix', 'card'] }] : []),
@@ -422,6 +444,59 @@ async function handleApi(req, res, pathname) {
     ];
     const provider = providers[0]?.id || 'unavailable';
     return sendJson(res, 200, { provider, providers, enabled: providers.length > 0 });
+  }
+
+  if (pathname === '/api/payments/payverse' && req.method === 'POST') {
+    if (!payverseEnabled()) return sendJson(res, 503, { error: 'PayVerse Sandbox 자격증명이 등록되지 않았습니다.' });
+    const body = await readJson(req, 64 * 1024);
+    const selectedPlan = resolvePlan(body.plan);
+    if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
+    const orderId = cleanText(body.orderId, 100) || `CHK-${Date.now()}`;
+    const reqDate = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+    const amount = Number(selectedPlan.amount);
+    const orderIndex = data.orders.findIndex((item) => item.id === orderId);
+    if (orderIndex >= 0) {
+      data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'payverse', status: 'pending' };
+      saveData();
+    }
+    return sendJson(res, 200, {
+      ok: true,
+      provider: 'payverse',
+      payverse: {
+        sdkUrl: payverseSdkUrl(),
+        mid: process.env.PAYVERSE_MID,
+        clientKey: process.env.PAYVERSE_CLIENT_KEY,
+        reqDate,
+        orderId,
+        productName: selectedPlan.name,
+        requestCurrency: process.env.PAYVERSE_CURRENCY || 'BRL',
+        requestAmount: String(amount),
+        customerId: cleanText(body.email || body.customer || 'customer', 30),
+        returnUrl: process.env.PAYVERSE_RETURN_URL || 'https://www.hng1.com/?payment=return',
+        webhookUrl: process.env.PAYVERSE_WEBHOOK_URL || 'https://www.hng1.com/api/webhooks/payverse',
+        sign: payverseSign(orderId, amount, reqDate),
+      },
+    });
+  }
+
+  if (pathname === '/api/webhooks/payverse' && req.method === 'POST') {
+    const body = await readJson(req, 64 * 1024);
+    const orderId = String(body.orderId || body.order_id || '');
+    const orderIndex = data.orders.findIndex((item) => item.id === orderId);
+    if (orderIndex >= 0) {
+      const resultStatus = String(body.resultStatus || body.status || '').toUpperCase();
+      const status = resultStatus === 'SUCCESS' ? 'paid' : ['DECLINE', 'FAILED', 'CANCEL'].includes(resultStatus) ? 'payment_failed' : 'pending';
+      data.orders[orderIndex] = {
+        ...data.orders[orderIndex],
+        provider: 'payverse',
+        providerPaymentId: String(body.tid || body.transactionId || data.orders[orderIndex].providerPaymentId || ''),
+        status,
+        paymentResultCode: cleanText(body.resultCode, 20),
+        paymentResultMessage: cleanText(body.resultMessage, 240),
+      };
+      saveData();
+    }
+    return sendJson(res, 200, { ok: true });
   }
 
   if (pathname === '/api/payments/ebanx/pix' && req.method === 'POST') {
