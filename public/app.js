@@ -144,6 +144,7 @@ const I18N = {
     "form.second": "2026년 하반기",
     "form.later": "아직 정하지 않았습니다",
     "form.paymentMethod": "결제 방법",
+    "form.dlocalGo": "dLocal Go로 결제",
     "form.pix": "픽스",
     "form.card": "카드",
     "form.referral": "추천인 코드",
@@ -303,6 +304,7 @@ const I18N = {
     "form.second": "Second half of 2026",
     "form.later": "Not decided yet",
     "form.paymentMethod": "Payment method",
+    "form.dlocalGo": "Pay with dLocal Go",
     "form.pix": "PIX",
     "form.card": "Card",
     "form.referral": "Referral code",
@@ -483,6 +485,7 @@ const I18N = {
     "form.second": "Segundo semestre de 2026",
     "form.later": "Ainda não decidi",
     "form.paymentMethod": "Forma de pagamento",
+    "form.dlocalGo": "Pagar com dLocal Go",
     "form.pix": "PIX",
     "form.card": "Cartão",
     "form.referral": "Código de indicação",
@@ -674,6 +677,18 @@ document.querySelector('[data-config-link="ansaWebsite"]')?.addEventListener('cl
 });
 
 form?.addEventListener('submit', async (event) => {
+  const requestedProvider = event.submitter?.value === 'dlocal-go' ? 'dlocal-go' : '';
+  if (requestedProvider) {
+    event.preventDefault();
+    try {
+      const response = await fetch('/api/payment-provider');
+      const info = await response.json();
+      if (!response.ok || !info.providers?.some(({ id }) => id === requestedProvider)) throw new Error();
+    } catch {
+      alert({ ko: 'dLocal Go 결제는 아직 사용할 수 없습니다.', en: 'dLocal Go payments are not available yet.', pt: 'O pagamento com dLocal Go ainda não está disponível.' }[document.documentElement.lang.split('-')[0]] || 'O pagamento com dLocal Go ainda não está disponível.');
+      return;
+    }
+  }
   event.preventDefault();
   if (!form.reportValidity()) return;
 
@@ -713,11 +728,12 @@ form?.addEventListener('submit', async (event) => {
       if (!providerInfo.enabled) {
         throw new Error('현재 결제 PG가 아직 활성화되지 않았습니다. 관리자에게 문의해 주세요.');
       }
-      const providerPath = providerInfo.provider === 'payverse'
+      const provider = requestedProvider || providerInfo.provider;
+      const providerPath = provider === 'payverse'
         ? '/api/payments/payverse'
-        : providerInfo.provider === 'ebanx'
+        : provider === 'ebanx'
         ? '/api/payments/ebanx/pix'
-        : '/api/payments/dlocalgo';
+        : '/api/payments/dlocal-go';
       const paymentResponse = await fetch(providerPath, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -742,22 +758,6 @@ form?.addEventListener('submit', async (event) => {
           script.onerror = () => reject(new Error('PayVerse SDK를 불러오지 못했습니다.'));
           document.head.appendChild(script);
         });
-        return;
-      }
-      if (payment.formAction && payment.fields) {
-        const paymentForm = document.createElement('form');
-        paymentForm.method = 'POST';
-        paymentForm.action = payment.formAction;
-        paymentForm.style.display = 'none';
-        Object.entries(payment.fields).forEach(([name, value]) => {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = name;
-          input.value = String(value ?? '');
-          paymentForm.appendChild(input);
-        });
-        document.body.appendChild(paymentForm);
-        paymentForm.submit();
         return;
       }
       if (payment.checkoutUrl) {

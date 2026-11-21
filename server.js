@@ -163,55 +163,6 @@ function sessionCookie(token, maxAge = Math.floor(sessionTtlMs / 1000)) {
   return `hng_admin_session=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
 }
 
-function dLocalConfigured() {
-  return Boolean(process.env.DLOCAL_X_LOGIN && process.env.DLOCAL_X_TRANS_KEY && process.env.DLOCAL_SECRET_KEY);
-}
-
-function dLocalPaymentsEnabled() {
-  if (!dLocalConfigured()) return false;
-  const mode = process.env.DLOCAL_MODE || 'live';
-  if (mode === 'sandbox') {
-    return process.env.DLOCAL_SANDBOX_ENABLED === 'true'
-      && process.env.RAILWAY_ENVIRONMENT_NAME !== 'production'
-      && dLocalApiBase() === 'https://sandbox.dlocal.com';
-  }
-  return mode === 'live'
-    && process.env.DLOCAL_LIVE_ENABLED === 'true'
-    && dLocalApiBase() === 'https://api.dlocal.com';
-}
-
-function dLocalApiBase() {
-  return (process.env.DLOCAL_API_BASE || 'https://api.dlocal.com').replace(/\/$/, '');
-}
-
-function hectoConfigured() {
-  return Boolean(process.env.HECTO_MCHT_ID && process.env.HECTO_LICENSE_KEY && process.env.HECTO_ENCRYPTION_KEY);
-}
-
-function hectoEnabled() {
-  return process.env.HECTO_ENABLED === 'true' && hectoConfigured();
-}
-
-function hectoApiBase() {
-  return (process.env.HECTO_API_BASE || 'https://tbnpg.settlebank.co.kr').replace(/\/$/, '');
-}
-
-function hectoEncrypt(value) {
-  const key = Buffer.from(process.env.HECTO_ENCRYPTION_KEY, 'utf8');
-  if (key.length !== 32) throw new Error('HECTO_ENCRYPTION_KEY는 UTF-8 32바이트 AES-256 키여야 합니다.');
-  const cipher = crypto.createCipheriv('aes-256-ecb', key, null);
-  return Buffer.concat([cipher.update(String(value ?? ''), 'utf8'), cipher.final()]).toString('base64');
-}
-
-function hectoHash(...parts) {
-  return crypto.createHash('sha256').update(parts.join(''), 'utf8').digest('hex');
-}
-
-function hectoRedirectUrl(pathname) {
-  const base = (process.env.PUBLIC_APP_URL || 'https://www.hng1.com').replace(/\/$/, '');
-  return `${base}${pathname}`;
-}
-
 function ebanxConfigured() {
   return Boolean(process.env.EBANX_INTEGRATION_KEY);
 }
@@ -291,62 +242,6 @@ async function ebanxRequest(pathname, payload) {
   return body;
 }
 
-function dLocalSignature(date, requestBody) {
-  return crypto.createHmac('sha256', process.env.DLOCAL_SECRET_KEY)
-    .update(`${process.env.DLOCAL_X_LOGIN}${date}${requestBody}`)
-    .digest('hex');
-}
-
-async function dLocalRequest(pathname, requestPayload, idempotencyKey = '') {
-  const requestBody = JSON.stringify(requestPayload);
-  const date = new Date().toISOString();
-  const response = await fetch(`${dLocalApiBase()}${pathname}`, {
-    method: 'POST',
-    headers: {
-      'X-Date': date,
-      'X-Login': process.env.DLOCAL_X_LOGIN,
-      'X-Trans-Key': process.env.DLOCAL_X_TRANS_KEY,
-      'Content-Type': 'application/json',
-      'X-Version': '2.1',
-      'User-Agent': 'H&G Agency / 1.0',
-      Authorization: `V2-HMAC-SHA256, Signature: ${dLocalSignature(date, requestBody)}`,
-      ...(idempotencyKey ? { 'X-Idempotency-Key': idempotencyKey.slice(0, 42) } : {}),
-    },
-    body: requestBody,
-  });
-  const responsePayload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(responsePayload.message || responsePayload.status_detail || `dLocal request failed (${response.status}).`);
-  return responsePayload;
-}
-
-async function dLocalGet(pathname) {
-  const date = new Date().toISOString();
-  const response = await fetch(`${dLocalApiBase()}${pathname}`, {
-    method: 'GET',
-    headers: {
-      'X-Date': date,
-      'X-Login': process.env.DLOCAL_X_LOGIN,
-      'X-Trans-Key': process.env.DLOCAL_X_TRANS_KEY,
-      'X-Version': '2.1',
-      'User-Agent': 'H&G Agency / 1.0',
-      Authorization: `V2-HMAC-SHA256, Signature: ${dLocalSignature(date, '')}`,
-    },
-  });
-  const responsePayload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(responsePayload.message || responsePayload.status_detail || `dLocal request failed (${response.status}).`);
-  return responsePayload;
-}
-
-function validDLocalNotification(req, rawBody) {
-  if (!dLocalConfigured()) return false;
-  const date = String(req.headers['x-date'] || '');
-  const authorization = String(req.headers.authorization || '');
-  const received = authorization.match(/Signature:\s*([a-f0-9]+)/i)?.[1] || '';
-  const expected = dLocalSignature(date, rawBody);
-  if (!/^[a-f0-9]{64}$/i.test(received) || received.length !== expected.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(received, 'hex'), Buffer.from(expected, 'hex'));
-}
-
 function validCpf(value) {
   const digits = String(value || '').replace(/\D/g, '');
   if (!/^\d{11}$/.test(digits) || /^(\d)\1{10}$/.test(digits)) return false;
@@ -414,6 +309,9 @@ async function handleApi(req, res, pathname) {
       referralCode: cleanText(body.referralCode, 80) || '—',
       status: 'pending',
     };
+    if (data.orders.some((item) => item.id === order.id && item.provider === 'payverse')) {
+      return sendJson(res, 409, { error: 'PayVerse order already exists.' });
+    }
     data.orders = [order, ...data.orders.filter((item) => item.id !== order.id)].slice(0, 500);
     const memberEmail = order.email.toLowerCase();
     const memberIndex = data.members.findIndex((member) => member.email?.toLowerCase() === memberEmail && memberEmail);
@@ -439,8 +337,6 @@ async function handleApi(req, res, pathname) {
       ...(payverseEnabled() ? [{ id: 'payverse', label: 'PayVerse', methods: ['card', 'wallet'] }] : []),
       ...(ebanxEnabled() ? [{ id: 'ebanx', label: 'EBANX', methods: ['pix'] }] : []),
       ...(dLocalGoEnabled() ? [{ id: 'dlocal-go', label: 'dLocal Go', methods: ['pix', 'card'] }] : []),
-      ...(dLocalPaymentsEnabled() ? [{ id: 'dlocal', label: 'dLocal API', methods: ['pix', 'card'] }] : []),
-      ...(hectoEnabled() ? [{ id: 'hecto', label: 'Hecto Financial', methods: ['card'] }] : []),
     ];
     const provider = providers[0]?.id || 'unavailable';
     return sendJson(res, 200, { provider, providers, enabled: providers.length > 0 });
@@ -455,10 +351,13 @@ async function handleApi(req, res, pathname) {
     const reqDate = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
     const amount = Number(selectedPlan.amount);
     const orderIndex = data.orders.findIndex((item) => item.id === orderId);
-    if (orderIndex >= 0) {
-      data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'payverse', status: 'pending' };
-      saveData();
+    const order = data.orders[orderIndex];
+    if (!order || order.status !== 'pending' || Number(order.amount) !== amount || (order.provider && order.provider !== 'payverse')) {
+      return sendJson(res, 409, { error: 'Order is not eligible for PayVerse checkout.' });
     }
+    const currency = process.env.PAYVERSE_CURRENCY || 'BRL';
+    data.orders[orderIndex] = { ...order, provider: 'payverse', payverseAmount: amount, payverseCurrency: currency };
+    saveData();
     return sendJson(res, 200, {
       ok: true,
       provider: 'payverse',
@@ -469,7 +368,7 @@ async function handleApi(req, res, pathname) {
         reqDate,
         orderId,
         productName: selectedPlan.name,
-        requestCurrency: process.env.PAYVERSE_CURRENCY || 'BRL',
+        requestCurrency: currency,
         requestAmount: String(amount),
         customerId: cleanText(body.email || body.customer || 'customer', 30),
         returnUrl: process.env.PAYVERSE_RETURN_URL || 'https://www.hng1.com/?payment=return',
@@ -480,23 +379,34 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === '/api/webhooks/payverse' && req.method === 'POST') {
+    if (!payverseEnabled()) return sendJson(res, 503, { receiveResult: 'FAILED' });
     const body = await readJson(req, 64 * 1024);
-    const orderId = String(body.orderId || body.order_id || '');
-    const orderIndex = data.orders.findIndex((item) => item.id === orderId);
-    if (orderIndex >= 0) {
-      const resultStatus = String(body.resultStatus || body.status || '').toUpperCase();
-      const status = resultStatus === 'SUCCESS' ? 'paid' : ['DECLINE', 'FAILED', 'CANCEL'].includes(resultStatus) ? 'payment_failed' : 'pending';
-      data.orders[orderIndex] = {
-        ...data.orders[orderIndex],
-        provider: 'payverse',
-        providerPaymentId: String(body.tid || body.transactionId || data.orders[orderIndex].providerPaymentId || ''),
-        status,
-        paymentResultCode: cleanText(body.resultCode, 20),
-        paymentResultMessage: cleanText(body.resultMessage, 240),
-      };
-      saveData();
+    const { orderId, tid, sign, approvalDay } = body;
+    if (body.type !== 'Sale' || body.resultStatus !== 'SUCCESS') return sendJson(res, 200, { receiveResult: 'SUCCESS' });
+    if (body.mid !== process.env.PAYVERSE_MID || typeof orderId !== 'string' || !/^[a-z0-9_-]{1,20}$/i.test(tid || '') || !/^\d{8}$/.test(approvalDay || '') || typeof sign !== 'string' || !/^[a-f0-9]{128}$/i.test(sign)) {
+      return sendJson(res, 400, { receiveResult: 'FAILED' });
     }
-    return sendJson(res, 200, { ok: true });
+    const expected = payverseSign(orderId, body.requestAmount, approvalDay);
+    if (!crypto.timingSafeEqual(Buffer.from(sign, 'hex'), Buffer.from(expected, 'hex'))) return sendJson(res, 403, { receiveResult: 'FAILED' });
+    const order = data.orders.find((item) => item.id === orderId && item.provider === 'payverse');
+    if (!order || order.status !== 'pending') return sendJson(res, 200, { receiveResult: 'SUCCESS' });
+    const host = process.env.PAYVERSE_MODE === 'live' ? 'pay.payverseglobal.com' : 'pay-snd.payverseglobal.com';
+    let transaction;
+    try {
+      const response = await fetch('https://' + host + '/payment/search/transaction/' + encodeURIComponent(tid), {
+        headers: { mid: process.env.PAYVERSE_MID, clientKey: process.env.PAYVERSE_CLIENT_KEY },
+        redirect: 'error', signal: AbortSignal.timeout(10000),
+      });
+      if (response.ok) transaction = await response.json();
+    } catch {}
+    if (transaction?.resultStatus !== 'SUCCESS' || transaction.transactionStatus !== 'SUCCESS' || transaction.transactionType !== '0040' || transaction.tid !== tid || transaction.orderId !== orderId || transaction.requestCurrency !== order.payverseCurrency || Number(transaction.requestAmount) !== order.payverseAmount) {
+      return sendJson(res, 502, { receiveResult: 'FAILED' });
+    }
+    const index = data.orders.findIndex((item) => item === order);
+    if (index < 0) return sendJson(res, 409, { receiveResult: 'FAILED' });
+    data.orders[index] = { ...order, providerPaymentId: tid, status: 'paid' };
+    saveData();
+    return sendJson(res, 200, { receiveResult: 'SUCCESS' });
   }
 
   if (pathname === '/api/payments/ebanx/pix' && req.method === 'POST') {
@@ -549,40 +459,6 @@ async function handleApi(req, res, pathname) {
     return sendJson(res, 200, { ok: true });
   }
 
-  if ((pathname === '/api/payments/dlocal/pix' || pathname === '/api/payments/dlocal/card') && req.method === 'POST') {
-    if (!dLocalPaymentsEnabled()) return sendJson(res, 503, { error: 'O pagamento online ainda não está disponível. Entre em contato pelo WhatsApp.' });
-    const body = await readJson(req, 64 * 1024);
-    const selectedPlan = resolvePlan(body.plan);
-    if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
-    const document = cleanText(body.document, 32).replace(/\D/g, '');
-    if (!validCpf(document)) return sendJson(res, 400, { error: 'Informe um CPF brasileiro válido com 11 dígitos.' });
-    const orderId = cleanText(body.orderId, 80) || `CHK-${Date.now()}`;
-    const isCard = pathname.endsWith('/card');
-    const payment = await dLocalRequest('/payments', {
-      amount: selectedPlan.amount,
-      currency: 'BRL',
-      country: 'BR',
-      payment_method_id: isCard ? 'CARD' : 'PQ',
-      payment_method_flow: 'REDIRECT',
-      payer: {
-        name: cleanText(body.customer || body.name, 120) || 'Cliente',
-        email: cleanText(body.email, 160),
-        document,
-        user_reference: orderId,
-      },
-      order_id: orderId,
-      description: selectedPlan.name,
-      notification_url: process.env.DLOCAL_NOTIFICATION_URL || 'https://www.hng1.com/api/webhooks/dlocal',
-      callback_url: process.env.DLOCAL_CALLBACK_URL || 'https://www.hng1.com/?payment=return',
-    }, orderId);
-    const orderIndex = data.orders.findIndex((item) => item.id === orderId);
-    if (orderIndex >= 0) {
-      data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'dlocal', providerPaymentId: String(payment.id), status: String(payment.status || 'pending').toLowerCase() };
-      saveData();
-    }
-    return sendJson(res, 201, { ok: true, provider: 'dlocal', paymentId: payment.id, status: payment.status, checkoutUrl: payment.redirect_url || payment.redirect_URL || '' });
-  }
-
   if (pathname === '/api/payments/dlocal-go' && req.method === 'POST') {
     if (!dLocalGoEnabled()) return sendJson(res, 503, { error: 'dLocal Go Sandbox API 키와 Secret이 설정되지 않았습니다.' });
     const body = await readJson(req, 64 * 1024);
@@ -623,135 +499,6 @@ async function handleApi(req, res, pathname) {
     return sendJson(res, 200, { ok: true });
   }
 
-  if (pathname === '/api/payments/hecto/card' && req.method === 'POST') {
-    if (!hectoEnabled()) {
-      return sendJson(res, 503, { error: 'Hecto 결제는 계약 후 발급되는 상점 ID와 키를 등록한 뒤 활성화할 수 있습니다.' });
-    }
-    const body = await readJson(req, 64 * 1024);
-    const selectedPlan = resolvePlan(body.plan);
-    if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
-    if (body.paymentMethod && body.paymentMethod !== 'card') {
-      return sendJson(res, 400, { error: '현재 Hecto 연동은 공식 카드 결제창 기준입니다. PIX는 Hecto 계약 및 별도 지원 여부 확인 후 연결할 수 있습니다.' });
-    }
-    const orderId = cleanText(body.orderId, 100) || `CHK-${Date.now()}`;
-    const now = new Date();
-    const trdDt = now.toISOString().slice(0, 10).replace(/-/g, '');
-    const trdTm = now.toISOString().slice(11, 19).replace(/:/g, '');
-    const amount = String(selectedPlan.amount);
-    const fields = {
-      mchtId: process.env.HECTO_MCHT_ID,
-      method: 'card',
-      trdDt,
-      trdTm,
-      mchtTrdNo: orderId,
-      mchtName: process.env.HECTO_MCHT_NAME || 'H&G Agency',
-      mchtEName: process.env.HECTO_MCHT_ENAME || 'H&G Agency',
-      pmtPrdtNm: selectedPlan.name,
-      trdAmt: hectoEncrypt(amount),
-      notiUrl: process.env.HECTO_NOTI_URL || hectoRedirectUrl('/api/webhooks/hecto'),
-      nextUrl: process.env.HECTO_NEXT_URL || hectoRedirectUrl('/api/payments/hecto/return'),
-      cancUrl: process.env.HECTO_CANC_URL || hectoRedirectUrl('/api/payments/hecto/cancel'),
-      pktHash: hectoHash(process.env.HECTO_MCHT_ID, 'card', orderId, trdDt, trdTm, amount, process.env.HECTO_LICENSE_KEY),
-      mchtCustNm: hectoEncrypt(cleanText(body.customer || body.name, 30) || 'Cliente'),
-      email: hectoEncrypt(cleanText(body.email, 60)),
-      mchtCustId: hectoEncrypt(cleanText(body.email, 50) || orderId),
-      instmtMon: '00',
-      taxTypeCd: 'N',
-    };
-    const orderIndex = data.orders.findIndex((item) => item.id === orderId);
-    if (orderIndex >= 0) {
-      data.orders[orderIndex] = {
-        ...data.orders[orderIndex],
-        provider: 'hecto',
-        providerMerchantOrderId: orderId,
-        status: 'pending',
-      };
-      saveData();
-    }
-    return sendJson(res, 201, {
-      ok: true,
-      provider: 'hecto',
-      formAction: `${hectoApiBase()}/card/main.do`,
-      fields,
-    });
-  }
-
-  if ((pathname === '/api/payments/hecto/return' || pathname === '/api/payments/hecto/cancel') && req.method === 'GET') {
-    const query = new URL(req.url || '/', 'http://localhost').searchParams;
-    const orderId = cleanText(query.get('mchtTrdNo'), 100);
-    const orderIndex = data.orders.findIndex((item) => item.id === orderId);
-    if (orderIndex >= 0) {
-      const success = query.get('outStatCd') === '0021';
-      data.orders[orderIndex] = {
-        ...data.orders[orderIndex],
-        provider: 'hecto',
-        providerTransactionId: cleanText(query.get('trdNo'), 80),
-        status: success ? 'paid' : 'payment_failed',
-        paymentResultCode: cleanText(query.get('outRsltCd'), 20),
-        paymentResultMessage: cleanText(query.get('outRsltMsg'), 240),
-      };
-      saveData();
-    }
-    res.writeHead(303, { Location: `/?payment=${query.get('outStatCd') === '0021' ? 'success' : 'failed'}` });
-    res.end();
-    return;
-  }
-
-  if (pathname === '/api/webhooks/hecto' && req.method === 'POST') {
-    if (!hectoConfigured()) return sendJson(res, 503, { error: 'Hecto 자격증명이 설정되지 않았습니다.' });
-    const body = await readJson(req, 64 * 1024);
-    const trdDtm = cleanText(body.trdDtm, 14);
-    const expected = hectoHash(body.outStatCd, trdDtm.slice(0, 8), trdDtm.slice(8, 14), body.mchtId, body.mchtTrdNo, body.trdAmt, process.env.HECTO_LICENSE_KEY);
-    const receivedHash = String(body.pktHash || '');
-    if (receivedHash.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(receivedHash), Buffer.from(expected))) {
-      return sendJson(res, 401, { error: 'Invalid Hecto notification hash.' });
-    }
-    const orderIndex = data.orders.findIndex((item) => item.id === String(body.mchtTrdNo));
-    if (orderIndex >= 0) {
-      data.orders[orderIndex] = {
-        ...data.orders[orderIndex],
-        provider: 'hecto',
-        providerTransactionId: cleanText(body.trdNo, 80),
-        status: body.outStatCd === '0021' ? 'paid' : 'payment_failed',
-        paymentResultCode: cleanText(body.outRsltCd, 20),
-        paymentResultMessage: cleanText(body.outRsltMsg, 240),
-      };
-      saveData();
-    }
-    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('OK');
-    return;
-  }
-
-  if (pathname === '/api/webhooks/dlocal/refund' && (req.method === 'POST' || req.method === 'GET')) {
-    if (req.method === 'GET') return sendJson(res, 200, { ok: true });
-    const { body, rawBody } = await readJsonWithRawBody(req, 64 * 1024);
-    if (!validDLocalNotification(req, rawBody)) return sendJson(res, 401, { error: 'Invalid dLocal signature.' });
-    const orderIndex = data.orders.findIndex((item) => item.providerPaymentId === String(body.payment_id || ''));
-    if (orderIndex >= 0) {
-      data.orders[orderIndex] = {
-        ...data.orders[orderIndex],
-        refundId: String(body.id || data.orders[orderIndex].refundId || ''),
-        refundStatus: String(body.status || 'pending').toLowerCase(),
-        status: String(body.status || '').toUpperCase() === 'SUCCESS' ? 'refunded' : data.orders[orderIndex].status,
-      };
-      saveData();
-    }
-    return sendJson(res, 200, { ok: true });
-  }
-
-  if (pathname === '/api/webhooks/dlocal' && (req.method === 'POST' || req.method === 'GET')) {
-    if (req.method === 'GET') return sendJson(res, 200, { ok: true });
-    const { body, rawBody } = await readJsonWithRawBody(req, 64 * 1024);
-    if (!validDLocalNotification(req, rawBody)) return sendJson(res, 401, { error: 'Invalid dLocal signature.' });
-    const orderIndex = data.orders.findIndex((item) => item.id === body.order_id);
-    if (orderIndex >= 0) {
-      data.orders[orderIndex] = { ...data.orders[orderIndex], provider: 'dlocal', providerPaymentId: String(body.id || ''), status: String(body.status || data.orders[orderIndex].status).toLowerCase() };
-      saveData();
-    }
-    return sendJson(res, 200, { ok: true });
-  }
-
   if (!pathname.startsWith('/api/admin/')) return false;
   if (!hasAdminSession(req)) {
     sendJson(res, 401, { error: '관리자 로그인이 필요합니다.' });
@@ -780,15 +527,7 @@ async function handleApi(req, res, pathname) {
         order_refund_id: `REF-${order.id}-${Date.now()}`.slice(0, 100),
       });
     } else {
-      if (!dLocalPaymentsEnabled()) return sendJson(res, 503, { error: 'dLocal 운영 결제가 활성화되지 않았습니다.' });
-      refund = await dLocalRequest('/refunds', {
-        payment_id: order.providerPaymentId,
-        amount: Number(order.amount),
-        currency: 'BRL',
-        order_refund_id: `REF-${order.id}-${Date.now()}`.slice(0, 100),
-        description: 'H&G 고객 환불',
-        notification_url: process.env.DLOCAL_REFUND_NOTIFICATION_URL || 'https://www.hng1.com/api/webhooks/dlocal/refund',
-      }, `refund-${order.id}-${Date.now()}`);
+      return sendJson(res, 400, { error: 'Automatic refund is not supported for this provider.' });
     }
     data.orders[orderIndex] = {
       ...order,
@@ -799,14 +538,6 @@ async function handleApi(req, res, pathname) {
     };
     saveData();
     return sendJson(res, 200, { ok: true, refundId: refund.id, status: refund.status, order: data.orders[orderIndex] });
-  }
-
-  if (pathname.startsWith('/api/admin/refunds/') && pathname.endsWith('/status') && req.method === 'GET') {
-    if (!dLocalConfigured()) return sendJson(res, 503, { error: 'dLocal 환불 API 자격증명이 설정되지 않았습니다.' });
-    const refundId = decodeURIComponent(pathname.slice('/api/admin/refunds/'.length, -'/status'.length));
-    if (!refundId) return sendJson(res, 400, { error: '환불 ID가 필요합니다.' });
-    const refund = await dLocalGet(`/refunds/${encodeURIComponent(refundId)}/status`);
-    return sendJson(res, 200, refund);
   }
 
   if (pathname === '/api/admin/state' && req.method === 'POST') {
