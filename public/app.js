@@ -151,6 +151,8 @@ const I18N = {
     "form.selectedPlan": "선택한 플랜",
     "form.paymentAmount": "결제금액",
     "form.submit": "신청하기 + 결제하기 ↗",
+    "form.payverse": "PayVerse로 카드 결제 ↗",
+    "form.payverseUnavailable": "PayVerse 카드 결제 준비 중",
     "form.whatsapp": "왓츠앱 상담",
     "form.note": "입력 후 PIX QR코드가 표시되며, 브라질 은행 앱으로 결제합니다.",
     "form.successTitle": "신청이 준비되었습니다.",
@@ -311,6 +313,8 @@ const I18N = {
     "form.selectedPlan": "Selected plan",
     "form.paymentAmount": "Payment amount",
     "form.submit": "Apply + pay ↗",
+    "form.payverse": "Pay by card with PayVerse ↗",
+    "form.payverseUnavailable": "PayVerse card payment coming soon",
     "form.whatsapp": "Ask on WhatsApp",
     "form.note": "A PIX QR code will be shown; pay with your Brazilian bank app.",
     "form.successTitle": "Your application is ready.",
@@ -492,6 +496,8 @@ const I18N = {
     "form.selectedPlan": "Plano selecionado",
     "form.paymentAmount": "Valor do pagamento",
     "form.submit": "Inscrever-se + pagar ↗",
+    "form.payverse": "Pagar com cartão via PayVerse ↗",
+    "form.payverseUnavailable": "Pagamento PayVerse em preparação",
     "form.whatsapp": "Falar no WhatsApp",
     "form.note": "O QR code do PIX será exibido; pague pelo app do seu banco.",
     "form.successTitle": "Sua inscrição está pronta.",
@@ -646,8 +652,14 @@ document.querySelectorAll('a[href^="#"]').forEach((link) => {
 });
 
 document.querySelectorAll('[data-open-application]').forEach((button) => {
-  button.addEventListener('click', () => {
+  button.addEventListener('click', async () => {
     resetDialog();
+    const payverseButton = document.querySelector('#payverse-pay-button');
+    if (payverseButton) {
+      payverseButton.disabled = true;
+      payverseButton.dataset.i18n = 'form.payverseUnavailable';
+      payverseButton.textContent = I18N[language]['form.payverseUnavailable'];
+    }
     if (form) {
       form.dataset.plan = button.dataset.plan || button.closest('.plan-card')?.querySelector('h3')?.textContent || 'Plano H&G';
       form.dataset.amount = button.dataset.amount || '';
@@ -659,7 +671,26 @@ document.querySelectorAll('[data-open-application]').forEach((button) => {
       if (checkoutAmount) checkoutAmount.textContent = formatBrl(form.dataset.amount);
     }
     dialog?.showModal();
+    try {
+      const response = await fetch('/api/payment-provider');
+      if (!response.ok) return;
+      const providerInfo = await response.json();
+      if (payverseButton && dialog?.open) {
+        payverseButton.disabled = !providerInfo.providers?.some((provider) => provider.id === 'payverse');
+        if (!payverseButton.disabled) {
+          payverseButton.dataset.i18n = 'form.payverse';
+          payverseButton.textContent = I18N[language]['form.payverse'];
+        }
+      }
+    } catch {
+      // Keep the PayVerse button disabled when availability cannot be checked.
+    }
   });
+});
+
+document.querySelector('#payverse-pay-button')?.addEventListener('click', () => {
+  const method = form?.querySelector('select[name="paymentMethod"]');
+  if (method) method.value = 'card';
 });
 
 document.querySelector('[data-close-dialog]')?.addEventListener('click', () => dialog?.close());
@@ -677,7 +708,7 @@ document.querySelector('[data-config-link="ansaWebsite"]')?.addEventListener('cl
 });
 
 form?.addEventListener('submit', async (event) => {
-  const requestedProvider = event.submitter?.value === 'dlocal-go' ? 'dlocal-go' : '';
+  const requestedProvider = ['dlocal-go', 'payverse'].includes(event.submitter?.value) ? event.submitter.value : '';
   if (requestedProvider) {
     event.preventDefault();
     try {
@@ -685,7 +716,7 @@ form?.addEventListener('submit', async (event) => {
       const info = await response.json();
       if (!response.ok || !info.providers?.some(({ id }) => id === requestedProvider)) throw new Error();
     } catch {
-      alert({ ko: 'dLocal Go 결제는 아직 사용할 수 없습니다.', en: 'dLocal Go payments are not available yet.', pt: 'O pagamento com dLocal Go ainda não está disponível.' }[document.documentElement.lang.split('-')[0]] || 'O pagamento com dLocal Go ainda não está disponível.');
+      alert('선택한 결제 서비스는 아직 사용할 수 없습니다.');
       return;
     }
   }
@@ -758,6 +789,16 @@ form?.addEventListener('submit', async (event) => {
           script.onerror = () => reject(new Error('PayVerse SDK를 불러오지 못했습니다.'));
           document.head.appendChild(script);
         });
+        const confirmationResponse = await fetch('/api/payments/payverse/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: checkoutRecord.id }),
+        });
+        if (!confirmationResponse.ok) throw new Error('PayVerse 거래 조회를 완료하지 못했습니다. 주문 상태는 대기 중입니다.');
+        const confirmation = await confirmationResponse.json();
+        window.alert(confirmation.verified
+          ? 'PayVerse 결제가 확인되었습니다.'
+          : '결제 결과 확인 중입니다. 최종 확인 전까지 주문은 대기 상태로 유지됩니다.');
         return;
       }
       if (payment.checkoutUrl) {

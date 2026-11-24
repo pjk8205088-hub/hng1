@@ -192,20 +192,72 @@ function payverseConfigured() {
 }
 
 function payverseEnabled() {
-  return process.env.PAYVERSE_ENABLED === 'true' && payverseConfigured();
+  const mode = process.env.PAYVERSE_MODE || 'sandbox';
+  return process.env.PAYVERSE_ENABLED === 'true'
+    && payverseConfigured()
+    && ((mode === 'sandbox' && process.env.RAILWAY_ENVIRONMENT_NAME !== 'production')
+      || (mode === 'live'
+        && process.env.RAILWAY_ENVIRONMENT_NAME === 'production'
+        && process.env.PAYVERSE_LIVE_ENABLED === 'true'));
 }
 
 function payverseSdkUrl() {
   const mode = process.env.PAYVERSE_MODE || 'sandbox';
-  return process.env.PAYVERSE_SDK_URL || (mode === 'live'
+  return mode === 'live'
     ? 'https://ui.payverseglobal.com/js/payments.js'
-    : 'https://ui-snd.payverseglobal.com/js/payments.js');
+    : 'https://ui-snd.payverseglobal.com/js/payments.js';
 }
 
 function payverseSign(orderId, amount, reqDate) {
   const normalizedAmount = String(Number(amount));
   const plainText = `||${process.env.PAYVERSE_SECRET_KEY}||${process.env.PAYVERSE_MID}||${orderId}||${normalizedAmount}||${reqDate}||`;
   return crypto.createHash('sha512').update(plainText, 'utf8').digest('hex');
+}
+
+function payverseApiBase() {
+  return process.env.PAYVERSE_MODE === 'live'
+    ? 'https://pay.payverseglobal.com'
+    : 'https://pay-snd.payverseglobal.com';
+}
+
+function payverseHeaders() {
+  return {
+    'Content-Type': 'application/json; charset=utf-8',
+    mid: process.env.PAYVERSE_MID,
+    clientKey: process.env.PAYVERSE_CLIENT_KEY,
+  };
+}
+
+async function payverseRequest(pathname, options = {}) {
+  const response = await fetch(`${payverseApiBase()}${pathname}`, {
+    ...options,
+    headers: { ...payverseHeaders(), ...options.headers },
+    signal: AbortSignal.timeout(10000),
+  });
+  const body = await response.json();
+  if (!response.ok) throw new Error(`PayVerse API returned HTTP ${response.status}.`);
+  return body;
+}
+
+async function payverseReconcileOrder(orderIndex) {
+  const order = data.orders[orderIndex];
+  if (order.provider !== 'payverse' || !order.payverseReqDate) throw new Error('PayVerse 주문 정보가 없습니다.');
+  if (order.status === 'paid') return { verified: true, status: 'paid' };
+  if (order.status !== 'pending') return { verified: false, status: order.status };
+  const date = order.payverseReqDate.slice(0, 8);
+  const result = await payverseRequest(`/payment/search/orderId/${encodeURIComponent(order.id)}?date=${date}`);
+  if (result.resultStatus !== 'SUCCESS') return { verified: false, status: result.resultStatus || 'UNKNOWN' };
+  if (result.orderId !== order.id
+    || result.requestCurrency !== (process.env.PAYVERSE_CURRENCY || 'BRL')
+    || Number(result.requestAmount) !== Number(order.amount)
+    || result.transactionType !== '0040'
+    || result.transactionStatus !== 'SUCCESS'
+    || !result.tid) {
+    return { verified: false, status: 'MISMATCH' };
+  }
+  data.orders[orderIndex] = { ...order, providerPaymentId: String(result.tid), status: 'paid', paidAt: new Date().toISOString() };
+  saveData();
+  return { verified: true, status: 'paid' };
 }
 
 function ebanxJwsSignature(rawBody) {
@@ -343,7 +395,7 @@ async function handleApi(req, res, pathname) {
   }
 
   if (pathname === '/api/payments/payverse' && req.method === 'POST') {
-    if (!payverseEnabled()) return sendJson(res, 503, { error: 'PayVerse Sandbox 자격증명이 등록되지 않았습니다.' });
+    if (!payverseEnabled()) return sendJson(res, 503, { error: 'PayVerse 결제가 아직 활성화되지 않았습니다.' });
     const body = await readJson(req, 64 * 1024);
     const selectedPlan = resolvePlan(body.plan);
     if (!selectedPlan) return sendJson(res, 400, { error: 'Invalid plan.' });
@@ -356,7 +408,7 @@ async function handleApi(req, res, pathname) {
       return sendJson(res, 409, { error: 'Order is not eligible for PayVerse checkout.' });
     }
     const currency = process.env.PAYVERSE_CURRENCY || 'BRL';
-    data.orders[orderIndex] = { ...order, provider: 'payverse', payverseAmount: amount, payverseCurrency: currency };
+    data.orders[orderIndex] = { ...order, provider: 'payverse', payverseReqDate: reqDate, payverseAmount: amount, payverseCurrency: currency };
     saveData();
     return sendJson(res, 200, {
       ok: true,
@@ -376,6 +428,16 @@ async function handleApi(req, res, pathname) {
         sign: payverseSign(orderId, amount, reqDate),
       },
     });
+  }
+
+  if (pathname === '/api/payments/payverse/confirm' && req.method === 'POST') {
+    if (!payverseEnabled()) return sendJson(res, 503, { error: 'PayVerse is not enabled.' });
+    const body = await readJson(req, 16 * 1024);
+    const orderId = cleanText(body.orderId, 100);
+    const orderIndex = data.orders.findIndex((item) => item.id === orderId && item.provider === 'payverse');
+    if (orderIndex < 0) return sendJson(res, 404, { error: 'PayVerse order not found.' });
+    const result = await payverseReconcileOrder(orderIndex);
+    return sendJson(res, 200, { ok: true, ...result });
   }
 
   if (pathname === '/api/webhooks/payverse' && req.method === 'POST') {
@@ -516,9 +578,32 @@ async function handleApi(req, res, pathname) {
     if (orderIndex < 0) return sendJson(res, 404, { error: '주문을 찾을 수 없습니다.' });
     const order = data.orders[orderIndex];
     if (!order.providerPaymentId) return sendJson(res, 400, { error: 'PG 결제 ID가 없는 주문입니다.' });
-    if (order.status === 'refunded' || order.refundStatus === 'success') return sendJson(res, 409, { error: '이미 환불 처리된 주문입니다.' });
+    if (order.status === 'refunded' || order.status === 'refund_pending' || order.refundStatus === 'success') return sendJson(res, 409, { error: '이미 환불 요청된 주문입니다.' });
+    if (order.provider === 'payverse' && order.status !== 'paid') return sendJson(res, 409, { error: '결제 완료가 검증되지 않은 주문입니다.' });
     let refund;
-    if (order.provider === 'dlocal-go') {
+    if (order.provider === 'payverse') {
+      if (!payverseEnabled()) return sendJson(res, 503, { error: 'PayVerse is not enabled.' });
+      const reqDate = new Date().toISOString().replace(/[-:TZ.]/g, '').slice(0, 14);
+      const amount = String(Number(order.amount));
+      const sign = crypto.createHash('sha512')
+        .update(`||${process.env.PAYVERSE_SECRET_KEY}||${process.env.PAYVERSE_MID}||${amount}||${reqDate}||`, 'utf8')
+        .digest('hex');
+      refund = await payverseRequest('/payment/cancel', {
+        method: 'POST',
+        body: JSON.stringify({
+          reqDate,
+          tid: order.providerPaymentId,
+          currency: process.env.PAYVERSE_CURRENCY || 'BRL',
+          amount,
+          cancelWorker: 'H&G admin',
+          cancelReason: cleanText(body.reason, 255) || 'Customer refund',
+          sign,
+        }),
+      });
+      if (!['SUCCESS', 'PROCESSING', 'PENDING'].includes(refund.resultStatus)) {
+        return sendJson(res, 502, { error: `PayVerse refund ${refund.resultStatus || 'failed'}.` });
+      }
+    } else if (order.provider === 'dlocal-go') {
       if (!dLocalGoEnabled()) return sendJson(res, 503, { error: 'dLocal Go Sandbox API 키와 Secret이 설정되지 않았습니다.' });
       refund = await dLocalGoRequest('/v1/refunds', {
         payment_id: order.providerPaymentId,
@@ -529,15 +614,16 @@ async function handleApi(req, res, pathname) {
     } else {
       return sendJson(res, 400, { error: 'Automatic refund is not supported for this provider.' });
     }
+    const refundStatus = String(refund.resultStatus || refund.status || 'pending').toLowerCase();
     data.orders[orderIndex] = {
       ...order,
-      refundId: String(refund.id || ''),
-      refundStatus: String(refund.status || 'pending').toLowerCase(),
-      status: String(refund.status || '').toUpperCase() === 'SUCCESS' ? 'refunded' : 'refund_pending',
+      refundId: String(refund.cancelTid || refund.id || ''),
+      refundStatus,
+      status: refundStatus === 'success' ? 'refunded' : 'refund_pending',
       refundedAt: new Date().toISOString(),
     };
     saveData();
-    return sendJson(res, 200, { ok: true, refundId: refund.id, status: refund.status, order: data.orders[orderIndex] });
+    return sendJson(res, 200, { ok: true, refundId: refund.cancelTid || refund.id, status: refund.resultStatus || refund.status, order: data.orders[orderIndex] });
   }
 
   if (pathname === '/api/admin/state' && req.method === 'POST') {
